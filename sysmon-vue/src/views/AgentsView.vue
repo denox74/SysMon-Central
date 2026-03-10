@@ -28,7 +28,7 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Estado</th><th>Nombre</th><th>Etiqueta</th><th>Host / IP</th><th>Sistema</th>
+            <th>Estado</th><th>Nombre</th><th>Etiqueta</th><th>Host / IP</th>
             <th>CPU</th><th>RAM</th><th>Temp</th><th>Disco</th><th>Último ping</th><th>Alertas</th><th></th>
           </tr>
         </thead>
@@ -48,7 +48,6 @@
               <span v-else class="text-muted">—</span>
             </td>
             <td class="text-muted" style="font-size:11px">{{ a.hostname || '—' }}<br>{{ a.ip_address || '—' }}</td>
-            <td class="text-muted" style="font-size:11px">{{ a.distro || '—' }}</td>
             <td>
               <span v-if="a.metrics" :style="{color: cpuColor(a.metrics.cpu_percent)}">
                 {{ a.metrics.cpu_percent?.toFixed(1) }}%
@@ -87,7 +86,7 @@
             </td>
           </tr>
           <tr v-if="!agents.length">
-            <td colspan="12" class="empty-state">Sin agentes. Crea uno para empezar.</td>
+            <td colspan="11" class="empty-state">Sin agentes. Crea uno para empezar.</td>
           </tr>
         </tbody>
       </table>

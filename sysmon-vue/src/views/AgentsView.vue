@@ -29,7 +29,7 @@
         <thead>
           <tr>
             <th>Estado</th><th>Nombre</th><th>Etiqueta</th><th>Host / IP</th><th>Sistema</th>
-            <th>CPU</th><th>RAM</th><th>Último ping</th><th>Alertas</th><th></th>
+            <th>CPU</th><th>RAM</th><th>Temp</th><th>Disco</th><th>Último ping</th><th>Alertas</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -61,6 +61,18 @@
               </span>
               <span v-else class="text-muted">—</span>
             </td>
+            <td>
+              <span v-if="a.metrics?.temp_max" :style="{color: tempColor(a.metrics.temp_max)}">
+                {{ a.metrics.temp_max.toFixed(0) }}°C
+              </span>
+              <span v-else class="text-muted">—</span>
+            </td>
+            <td>
+              <span v-if="a.metrics" :style="{color: diskColor(a.metrics.disk_max)}">
+                {{ a.metrics.disk_max?.toFixed(1) }}%
+              </span>
+              <span v-else class="text-muted">—</span>
+            </td>
             <td class="text-muted" style="font-size:11px">{{ timeAgo(a.last_seen_at) }}</td>
             <td>
               <span v-if="a.open_alerts > 0" class="badge badge-danger">{{ a.open_alerts }}</span>
@@ -75,7 +87,7 @@
             </td>
           </tr>
           <tr v-if="!agents.length">
-            <td colspan="10" class="empty-state">Sin agentes. Crea uno para empezar.</td>
+            <td colspan="12" class="empty-state">Sin agentes. Crea uno para empezar.</td>
           </tr>
         </tbody>
       </table>
@@ -216,8 +228,10 @@ function timeAgo(iso) {
   return `hace ${Math.floor(diff/3600)}h`
 }
 
-function cpuColor(v) { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 75 ? 'var(--warn)' : 'var(--accent2)' }
-function ramColor(v) { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 80 ? 'var(--warn)' : 'var(--text)' }
+function cpuColor(v)  { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 75 ? 'var(--warn)' : 'var(--accent2)' }
+function ramColor(v)  { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 80 ? 'var(--warn)' : 'var(--text)' }
+function tempColor(v) { if (!v) return ''; return v >= 85 ? 'var(--danger)' : v >= 70 ? 'var(--warn)' : 'var(--text)' }
+function diskColor(v) { if (!v) return ''; return v >= 95 ? 'var(--danger)' : v >= 85 ? 'var(--warn)' : 'var(--text)' }
 
 async function createAgent() {
   const { data } = await panelApi.createAgent(form.value)

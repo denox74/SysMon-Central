@@ -1,0 +1,93 @@
+version: '3.9'
+
+services:
+
+  # ── MySQL ─────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: sysmon-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sysmon_root
+      MYSQL_DATABASE:      sysmon
+      MYSQL_USER:          sysmon
+      MYSQL_PASSWORD:      sysmon_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - sysmon_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "sysmon", "-psysmon_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Laravel API ───────────────────────────────────────────────────
+  api:
+    build:
+      context: ./sysmon-laravel
+      dockerfile: Dockerfile
+    container_name: sysmon-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_NAME:        SysMon
+      APP_ENV:         local
+      APP_DEBUG:       "true"
+      APP_URL:         http://localhost:8000
+      # APP_KEY: NO poner aquí — se genera en el startup command y se guarda en .env
+
+      DB_CONNECTION:   mysql
+      DB_HOST:         db
+      DB_PORT:         3306
+      DB_DATABASE:     sysmon
+      DB_USERNAME:     sysmon
+      DB_PASSWORD:     sysmon_pass
+
+      CACHE_DRIVER:    file
+      QUEUE_CONNECTION: sync     # sync = emails en el mismo proceso (ideal para dev)
+      SESSION_DRIVER:  file
+
+      # Email: usa Mailtrap para ver emails sin enviar nada real
+      MAIL_MAILER:     smtp
+      MAIL_HOST:       ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
+      MAIL_PORT:       ${MAIL_PORT:-2525}
+      MAIL_USERNAME:   ${MAIL_USERNAME:-}
+      MAIL_PASSWORD:   ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: sysmon@localhost
+      MAIL_FROM_NAME:  SysMon
+
+      SYSMON_ALERT_EMAIL: ${SYSMON_ALERT_EMAIL:-admin@localhost}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sysmon-laravel:/var/www/html
+      - sysmon_storage:/var/www/html/storage
+
+  # ── Vue Panel ─────────────────────────────────────────────────────
+  panel:
+    image: node:20-alpine
+    container_name: sysmon-panel
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./sysmon-vue:/app
+      - sysmon_node_modules:/app/node_modules
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0
+      "
+
+volumes:
+  sysmon_db:
+  sysmon_storage:
+  sysmon_node_modules:

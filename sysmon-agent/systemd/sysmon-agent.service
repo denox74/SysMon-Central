@@ -1,0 +1,41 @@
+[Unit]
+Description=SysMon Agent — Monitor de rendimiento del sistema
+Documentation=https://github.com/tu-org/sysmon
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=sysmon
+Group=sysmon
+
+# Ruta al ejecutable (ajusta si instalas en otro lugar)
+ExecStart=/opt/sysmon/venv/bin/python /opt/sysmon/sysmon/agent.py --config /etc/sysmon/agent.env
+
+# Reiniciar automáticamente si el proceso muere
+Restart=on-failure
+RestartSec=15s
+
+# Variables de entorno opcionales (alternativa al archivo .env)
+# Environment="SYSMON_API_URL=https://..."
+# Environment="SYSMON_AGENT_TOKEN=..."
+
+# Logs al journal de systemd
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sysmon-agent
+
+# Límites de seguridad
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/log/sysmon
+PrivateTmp=true
+
+# Timeout de parada limpia
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

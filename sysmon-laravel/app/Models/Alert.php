@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Alert extends Model
+{
+    protected $fillable = [
+        'agent_id', 'metric_snapshot_id',
+        'rule_name', 'metric', 'severity', 'source',
+        'value', 'threshold', 'message',
+        'status', 'resolved_at', 'resolution_note',
+        'archived_at',
+        'notified_email', 'notified_at',
+        'fired_at',
+    ];
+
+    protected $casts = [
+        'fired_at'      => 'datetime',
+        'resolved_at'   => 'datetime',
+        'archived_at'   => 'datetime',
+        'notified_at'   => 'datetime',
+        'value'         => 'float',
+        'threshold'     => 'float',
+        'notified_email'=> 'boolean',
+    ];
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class);
+    }
+
+    public function snapshot(): BelongsTo
+    {
+        return $this->belongsTo(MetricSnapshot::class, 'metric_snapshot_id');
+    }
+
+    public function resolve(string $note = ''): void
+    {
+        $this->update([
+            'status'          => 'resolved',
+            'resolved_at'     => now(),
+            'resolution_note' => $note,
+        ]);
+    }
+
+    public function acknowledge(): void
+    {
+        $this->update(['status' => 'acknowledged']);
+    }
+
+    public function archive(): void
+    {
+        $this->update(['archived_at' => now()]);
+    }
+
+    /** Crea una alerta desde el array que manda el agente. */
+    public static function fromAgentAlert(int $agentId, int $snapshotId, array $data): self
+    {
+        return self::create([
+            'agent_id'           => $agentId,
+            'metric_snapshot_id' => $snapshotId,
+            'rule_name'          => $data['rule'],
+            'metric'             => $data['metric'],
+            'severity'           => $data['severity'],
+            'source'             => 'agent',
+            'value'              => $data['value'],
+            'threshold'          => $data['threshold'],
+            'message'            => $data['message'],
+            'fired_at'           => now(),
+            'status'             => 'open',
+        ]);
+    }
+}

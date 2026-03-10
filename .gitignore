@@ -1,0 +1,28 @@
+# Dependencies
+sysmon-laravel/vendor/
+sysmon-vue/node_modules/
+sysmon-agent/__pycache__/
+sysmon-agent/**/__pycache__/
+sysmon-agent/*.pyc
+sysmon-agent/**/*.pyc
+
+# Laravel
+sysmon-laravel/.env
+sysmon-laravel/storage/logs/*.log
+sysmon-laravel/storage/framework/cache/
+sysmon-laravel/storage/framework/sessions/
+sysmon-laravel/storage/framework/views/
+sysmon-laravel/bootstrap/cache/*.php
+
+# Vue build output
+sysmon-vue/dist/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Claude memory (local only)
+.claude/

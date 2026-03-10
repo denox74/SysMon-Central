@@ -1,8 +1,17 @@
 <template>
   <div class="dashboard">
 
-    <!-- Error state -->
-    <div v-if="store.error" class="api-error">
+    <!-- Connecting (first load) -->
+    <template v-if="store.loading && !store.data">
+      <div class="connecting-wrap">
+        <div class="connecting-label">Conectando con la API…</div>
+        <div class="connecting-bar"><div class="connecting-fill"></div></div>
+        <div class="connecting-hint">Esperando respuesta del servidor</div>
+      </div>
+    </template>
+
+    <!-- Error on first load (no data at all) -->
+    <div v-else-if="store.error && !store.data" class="api-error">
       <span>⚠</span>
       <div>
         <strong>Sin conexión con la API</strong>
@@ -10,13 +19,6 @@
       </div>
       <button class="btn btn-ghost btn-sm" @click="store.fetch()">Reintentar</button>
     </div>
-
-    <!-- Loading skeleton -->
-    <template v-else-if="store.loading && !store.data">
-      <div class="skeleton-row">
-        <div v-for="i in 4" :key="i" class="skeleton-card"></div>
-      </div>
-    </template>
 
     <template v-else>
       <!-- Totals row -->
@@ -91,8 +93,14 @@
 
     </template>
 
+    <!-- Reconnecting toast (polling error but data exists) -->
+    <div v-if="store.error && store.data" class="reconnecting-toast">
+      <span class="reconnecting-dot"></span>
+      Reconectando… <button class="btn btn-ghost btn-sm" style="margin-left:8px" @click="store.fetch()">Reintentar</button>
+    </div>
+
     <!-- Last update -->
-    <div v-if="store.lastUpdate" class="last-update">
+    <div v-if="store.lastUpdate && !store.error" class="last-update">
       Última actualización: {{ store.lastUpdate.toLocaleTimeString('es-ES') }}
     </div>
   </div>
@@ -143,15 +151,66 @@ async function resolveAlert(id) {
 .api-error p { color: var(--text-muted); margin-top: 2px; }
 .api-error .btn { margin-left: auto; flex-shrink: 0; }
 
-.skeleton-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
-.skeleton-card {
-  height: 120px;
+/* Connecting state */
+.connecting-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 60px 20px;
+}
+.connecting-label {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  letter-spacing: 0.5px;
+}
+.connecting-bar {
+  width: 320px;
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.connecting-fill {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  border-radius: 2px;
+  animation: scan 1.4s ease-in-out infinite;
+}
+@keyframes scan {
+  0%   { transform: translateX(-100%) scaleX(1); }
+  50%  { transform: translateX(150%) scaleX(1.5); }
+  100% { transform: translateX(400%) scaleX(1); }
+}
+.connecting-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Reconnecting toast */
+.reconnecting-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  animation: shimmer 1.5s infinite;
+  width: fit-content;
 }
-@keyframes shimmer { 0%,100%{opacity:0.5} 50%{opacity:1} }
+.reconnecting-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  animation: pulse-dot 1.2s infinite;
+}
 
 .totals-row {
   display: flex;

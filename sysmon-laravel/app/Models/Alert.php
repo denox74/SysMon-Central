@@ -5,6 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Alerta disparada cuando una métrica supera un umbral.
+ * Fired alert when a metric exceeds a threshold.
+ *
+ * Ciclo de vida / Lifecycle: open → acknowledged → resolved → (archived)
+ *
+ * source = 'agent'  → detectada y enviada por el agente Python
+ * source = 'server' → evaluada por Laravel al procesar el snapshot
+ */
 class Alert extends Model
 {
     protected $fillable = [
@@ -37,6 +46,9 @@ class Alert extends Model
         return $this->belongsTo(MetricSnapshot::class, 'metric_snapshot_id');
     }
 
+    // ── Acciones de ciclo de vida / Lifecycle actions ───────────────
+
+    /** Marca la alerta como resuelta con nota opcional. / Marks alert as resolved with optional note. */
     public function resolve(string $note = ''): void
     {
         $this->update([
@@ -46,11 +58,13 @@ class Alert extends Model
         ]);
     }
 
+    /** Marca la alerta como vista sin cerrarla. / Marks alert as seen without closing it. */
     public function acknowledge(): void
     {
         $this->update(['status' => 'acknowledged']);
     }
 
+    /** Archiva la alerta para ocultarla de la vista principal. / Archives alert to hide from main view. */
     public function archive(): void
     {
         $this->update(['archived_at' => now()]);

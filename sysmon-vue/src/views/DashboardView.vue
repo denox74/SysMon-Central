@@ -106,6 +106,18 @@
   </div>
 </template>
 
+<!--
+  DashboardView.vue — Vista principal / Main dashboard view
+  Tres estados posibles / Three possible states:
+    1. loading && !data  → barra de "Conectando…" (primera carga)
+                           "Connecting…" bar (first load)
+    2. error && !data    → mensaje de error con botón Reintentar
+                           error message with Retry button
+    3. data presente     → tarjetas de totales + grid de agentes + alertas recientes
+                           totals cards + agents grid + recent alerts
+  El toast "Reconectando" aparece si el polling falla pero ya hay datos.
+  The "Reconnecting" toast appears if polling fails but data already exists.
+-->
 <script setup>
 import { computed } from 'vue'
 import { useDashboardStore } from '@/stores'
@@ -115,10 +127,18 @@ import AgentCard from '@/components/dashboard/AgentCard.vue'
 const store  = useDashboardStore()
 const totals = computed(() => store.totals)
 
+/**
+ * Devuelve la clase CSS de badge según la severidad.
+ * Returns the badge CSS class based on severity.
+ */
 function severityClass(s) {
   return { critical: 'badge-danger', warning: 'badge-warn', info: 'badge-info' }[s] ?? 'badge-muted'
 }
 
+/**
+ * Convierte una fecha ISO a texto relativo ("hace 5m").
+ * Converts an ISO date to relative text ("hace 5m").
+ */
 function timeAgo(iso) {
   if (!iso) return '—'
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
@@ -127,6 +147,10 @@ function timeAgo(iso) {
   return `hace ${Math.floor(diff/3600)}h`
 }
 
+/**
+ * Resuelve una alerta desde la tabla de alertas recientes y recarga el store.
+ * Resolves an alert from the recent alerts table and reloads the store.
+ */
 async function resolveAlert(id) {
   await panelApi.resolveAlert(id)
   store.fetch()

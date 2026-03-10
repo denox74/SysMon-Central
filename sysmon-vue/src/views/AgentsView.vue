@@ -9,6 +9,7 @@
     <div class="filters-bar">
       <input class="input" v-model="searchName" placeholder="Filtrar por nombre…"   style="width:200px" />
       <input class="input" v-model="searchTag"  placeholder="Filtrar por etiqueta…" style="width:200px" />
+      <input class="input" v-model="searchHost" placeholder="Filtrar por host…"     style="width:200px" />
       <div class="filter-num">
         <span class="filter-label">Temp ≥</span>
         <input class="input input-sm" v-model.number="filterTemp" type="number" min="0" placeholder="°C" style="width:72px" />
@@ -173,22 +174,43 @@
   </div>
 </template>
 
+<!--
+  AgentsView.vue — Tabla de todos los agentes con filtros y acciones
+  Agents table with filters and row actions.
+
+  Datos vienen del store compartido (useDashboardStore) que ya hace polling.
+  Data comes from the shared store (useDashboardStore) which already polls.
+
+  Filtros disponibles / Available filters:
+    - searchName: por nombre del agente / by agent name
+    - searchTag:  por etiqueta (campo notes) / by label (notes field)
+    - searchHost: por hostname o IP / by hostname or IP
+    - filterTemp: temperatura máx ≥ X °C / max temp ≥ X °C
+    - filterDisk: uso de disco máx ≥ X % / max disk usage ≥ X %
+    - filterRam:  uso de RAM ≥ X % / RAM usage ≥ X %
+-->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { panelApi } from '@/services/api'
 import { useDashboardStore } from '@/stores'
 
+// Leemos agentes del store (se actualiza cada 10 s automáticamente)
+// Read agents from the store (auto-updated every 10 s)
 const store   = useDashboardStore()
 const agents  = computed(() => store.agents)
 
+// ── Filtros reactivos / Reactive filters ──────────────────────────────────────
 const searchName = ref('')
 const searchTag  = ref('')
+const searchHost = ref('')
 const filterTemp = ref(null)
 const filterDisk = ref(null)
 const filterRam  = ref(null)
 
+// true si hay algún filtro activo → muestra botón "Limpiar"
+// true if any filter is active → shows "Clear" button
 const hasFilters = computed(() =>
-  searchName.value || searchTag.value ||
+  searchName.value || searchTag.value || searchHost.value ||
   filterTemp.value !== null && filterTemp.value !== '' ||
   filterDisk.value !== null && filterDisk.value !== '' ||
   filterRam.value  !== null && filterRam.value  !== ''
@@ -197,17 +219,27 @@ const hasFilters = computed(() =>
 function clearFilters() {
   searchName.value = ''
   searchTag.value  = ''
+  searchHost.value = ''
   filterTemp.value = null
   filterDisk.value = null
   filterRam.value  = null
 }
 
+/**
+ * Lista de agentes aplicando todos los filtros activos.
+ * Agents list with all active filters applied.
+ * Los filtros numéricos usan >= para mostrar "peor que X".
+ * Numeric filters use >= to show "worse than X".
+ */
 const filteredAgents = computed(() => {
   let list = agents.value
   const name = searchName.value.trim().toLowerCase()
   const tag  = searchTag.value.trim().toLowerCase()
+  const host = searchHost.value.trim().toLowerCase()
   if (tag)  list = list.filter(a => a.notes?.toLowerCase().includes(tag))
   if (name) list = list.filter(a => a.name?.toLowerCase().includes(name))
+  // searchHost busca en hostname Y ip_address / searchHost searches hostname AND ip_address
+  if (host) list = list.filter(a => a.hostname?.toLowerCase().includes(host) || a.ip_address?.toLowerCase().includes(host))
   if (filterTemp.value !== null && filterTemp.value !== '')
     list = list.filter(a => (a.metrics?.temp_max ?? 0) >= filterTemp.value)
   if (filterDisk.value !== null && filterDisk.value !== '')
@@ -217,13 +249,20 @@ const filteredAgents = computed(() => {
   return list
 })
 
+// ── Estado de modales / Modal state ──────────────────────────────────────────
 const showCreate = ref(false)
 const tokenModal  = ref(null)
-const tokenCache  = {}   // guarda el último token generado por agente (en memoria de sesión)
+// tokenCache guarda el último token por agente para no repetir la llamada API
+// tokenCache stores the last token per agent to avoid repeat API calls
+const tokenCache  = {}
 const renameModal = ref(null)
 const renameForm  = ref({ name: '', notes: '' })
 const form = ref({ name: '', notify_email_to: '', notes: '' })
 
+/**
+ * Convierte fecha ISO a texto relativo ("hace 5m").
+ * Converts ISO date to relative text ("hace 5m").
+ */
 function timeAgo(iso) {
   if (!iso) return '—'
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
@@ -232,11 +271,18 @@ function timeAgo(iso) {
   return `hace ${Math.floor(diff/3600)}h`
 }
 
+// ── Funciones de color por umbral / Threshold color functions ─────────────────
+// Devuelven un CSS custom property según el valor vs umbrales de aviso/peligro
+// Return a CSS custom property based on value vs warning/danger thresholds
 function cpuColor(v)  { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 75 ? 'var(--warn)' : 'var(--accent2)' }
 function ramColor(v)  { if (!v) return ''; return v >= 90 ? 'var(--danger)' : v >= 80 ? 'var(--warn)' : 'var(--text)' }
 function tempColor(v) { if (!v) return ''; return v >= 85 ? 'var(--danger)' : v >= 70 ? 'var(--warn)' : 'var(--text)' }
 function diskColor(v) { if (!v) return ''; return v >= 95 ? 'var(--danger)' : v >= 85 ? 'var(--warn)' : 'var(--text)' }
 
+/**
+ * Crea un agente nuevo. La API devuelve el token generado que se muestra de inmediato.
+ * Creates a new agent. The API returns the generated token shown immediately.
+ */
 async function createAgent() {
   const { data } = await panelApi.createAgent(form.value)
   tokenModal.value = { name: data.agent.name, id: data.agent.id, token: data.token }
@@ -245,12 +291,20 @@ async function createAgent() {
   store.fetch()
 }
 
+/**
+ * Elimina un agente tras confirmación del usuario.
+ * Deletes an agent after user confirmation.
+ */
 async function deleteAgent(id) {
   if (!confirm('¿Desactivar este agente?')) return
   await panelApi.deleteAgent(id)
   store.fetch()
 }
 
+/**
+ * Muestra el token de un agente. Usa caché en memoria para evitar peticiones repetidas.
+ * Shows an agent's token. Uses in-memory cache to avoid repeated requests.
+ */
 async function viewToken(agent) {
   tokenModal.value = { name: agent.name, id: agent.id, token: tokenCache[agent.id] ?? null }
   if (!tokenCache[agent.id]) {
@@ -258,10 +312,14 @@ async function viewToken(agent) {
       const { data } = await panelApi.getToken(agent.id)
       tokenCache[agent.id] = data.token
       if (tokenModal.value?.id === agent.id) tokenModal.value.token = data.token
-    } catch { /* sin token disponible */ }
+    } catch { /* sin token disponible / token not available */ }
   }
 }
 
+/**
+ * Genera un nuevo token para el agente e invalida el anterior.
+ * Generates a new token for the agent, invalidating the previous one.
+ */
 async function regenerateToken(id) {
   const { data } = await panelApi.regenerateToken(id)
   tokenCache[id] = data.token
@@ -273,11 +331,19 @@ function copyToken(token) {
   alert('Token copiado al portapapeles')
 }
 
+/** Abre el modal de renombrar precargando los valores actuales del agente. */
+/** Opens the rename modal pre-filling the agent's current values. */
 function openRename(agent) {
   renameModal.value = agent
   renameForm.value  = { name: agent.name, notes: agent.notes ?? '' }
 }
 
+/**
+ * Guarda el nombre y etiqueta del agente.
+ * Saves the agent name and label.
+ * El campo `notes` se usa como etiqueta visible en la tabla.
+ * The `notes` field is used as the visible label in the table.
+ */
 async function saveRename() {
   if (!renameForm.value.name) return
   await panelApi.updateAgent(renameModal.value.id, renameForm.value)

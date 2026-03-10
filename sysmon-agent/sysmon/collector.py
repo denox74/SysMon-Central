@@ -47,11 +47,16 @@ def get_ram_metrics() -> dict:
     }
 
 
+# Sistemas de archivos excluidos del reporte de disco.
+# Sin esto, las particiones snap (squashfs) siempre dan 100% y disparan falsas alertas.
+# File systems excluded from disk report.
+# Without this, snap partitions (squashfs) always show 100% causing false alerts.
 _EXCLUDE_FSTYPES = {'squashfs', 'tmpfs', 'devtmpfs', 'overlay', 'aufs', 'ramfs', 'iso9660'}
 
 
 def get_disk_metrics() -> list[dict]:
-    """Todas las particiones montadas + I/O."""
+    """Todas las particiones montadas reales (excluye snap/tmpfs) + contadores I/O.
+    All real mounted partitions (excludes snap/tmpfs) + I/O counters."""
     disks = []
     io_counters = psutil.disk_io_counters(perdisk=True)
 
@@ -102,9 +107,11 @@ def get_network_metrics() -> dict:
         }
 
     try:
+        # net_connections() requiere permisos root en algunos sistemas.
+        # net_connections() requires root permissions on some systems.
         connections_count = len(psutil.net_connections())
     except (psutil.AccessDenied, PermissionError):
-        connections_count = None
+        connections_count = None  # No disponible sin root / Not available without root
 
     return {
         "total_sent_mb":    round(net_io.bytes_sent / 1e6, 2),
@@ -137,6 +144,8 @@ def get_temperatures() -> dict:
         # psutil no soporta sensors en este OS
         pass
 
+    # Fallback para sistemas ARM o donde psutil no tiene soporte de sensores.
+    # Fallback for ARM systems or where psutil has no sensor support.
     # Fallback: leer /sys/class/thermal (común en ARM / Ubuntu)
     if not temps:
         try:

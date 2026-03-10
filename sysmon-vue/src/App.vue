@@ -52,6 +52,18 @@
   </div>
 </template>
 
+<!--
+  App.vue — Shell principal de la aplicación / Main application shell
+  Contiene sidebar, header y el <RouterView> que monta las vistas.
+  Contains the sidebar, header and <RouterView> that mounts the views.
+
+  - El polling del dashboard arranca en onMounted y se detiene en onUnmounted.
+    Dashboard polling starts in onMounted and stops in onUnmounted.
+  - openCount alimenta el badge de alertas en el sidebar.
+    openCount feeds the alerts badge in the sidebar.
+  - El reloj se actualiza cada segundo con setInterval.
+    The clock updates every second via setInterval.
+-->
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -60,8 +72,11 @@ import { useDashboardStore } from '@/stores'
 const route  = useRoute()
 const store  = useDashboardStore()
 
+// Número de alertas abiertas para el badge rojo del sidebar
+// Number of open alerts for the red sidebar badge
 const openCount = computed(() => store.totals?.open_alerts ?? 0)
 
+// Reloj en tiempo real en el header / Real-time clock in the header
 const clock = ref('')
 let clockTimer = null
 
@@ -69,16 +84,22 @@ function updateClock() {
   clock.value = new Date().toLocaleTimeString('es-ES')
 }
 
+// Mapeo nombre-de-ruta → título que muestra el header
+// Route name → title shown in the header
 const titles = { dashboard: 'Dashboard', agents: 'Agentes', agent: 'Detalle de agente', alerts: 'Alertas', rules: 'Umbrales' }
 const pageTitle = computed(() => titles[route.name] ?? 'SysMon Central')
 
 onMounted(() => {
+  // Inicia polling cada 10 s y el reloj cada 1 s
+  // Starts polling every 10 s and the clock every 1 s
   store.startPolling(10000)
   updateClock()
   clockTimer = setInterval(updateClock, 1000)
 })
 
 onUnmounted(() => {
+  // Limpia timers al salir para evitar memory leaks
+  // Clean up timers on exit to avoid memory leaks
   store.stopPolling()
   clearInterval(clockTimer)
 })

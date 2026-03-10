@@ -1,3 +1,15 @@
+/**
+ * Cliente HTTP para la API de SysMon Central.
+ * HTTP client for the SysMon Central API.
+ *
+ * La baseURL se configura con la variable de entorno VITE_API_URL.
+ * En Docker dev: VITE_API_URL=http://localhost:8000
+ * En producción: apuntar a la URL pública de la API.
+ *
+ * The baseURL is configured with the VITE_API_URL environment variable.
+ * In Docker dev: VITE_API_URL=http://localhost:8000
+ * In production: point to the public API URL.
+ */
 import axios from 'axios'
 
 const api = axios.create({

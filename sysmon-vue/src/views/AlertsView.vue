@@ -115,25 +115,56 @@
   </div>
 </template>
 
+<!--
+  AlertsView.vue — Lista paginada de alertas con filtros y acciones de ciclo de vida
+  Paginated alert list with filters and lifecycle actions.
+
+  Dos modos de visualización / Two display modes:
+    1. Vista agrupada por agente (cuando agent_id === '')
+       Grouped view by agent (when agent_id === '')
+    2. Vista plana de un agente concreto (cuando agent_id tiene valor)
+       Flat view for a specific agent (when agent_id has a value)
+
+  Ciclo de vida de alertas / Alert lifecycle:
+    open → acknowledged → resolved → (archived)
+
+  Datos vienen de useAlertsStore; el selector de agentes usa dashStore.agents
+  que ya se actualiza con el polling global de App.vue.
+  Data from useAlertsStore; the agent selector uses dashStore.agents
+  already updated by App.vue's global polling.
+-->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAlertsStore, useDashboardStore } from '@/stores'
 
-const store     = useAlertsStore()
-const dashStore = useDashboardStore()
+const store     = useAlertsStore()    // alertas paginadas con filtros / paginated alerts with filters
+const dashStore = useDashboardStore() // para leer la lista de agentes del selector / to read agents for selector
 const page      = ref(1)
 
+// Funciones de clase de badge por severidad y estado
+// Badge class functions by severity and status
 const sevClass = s => ({ critical: 'badge-danger', warning: 'badge-warn', info: 'badge-info' })[s] ?? 'badge-muted'
 const stClass  = s => ({ open: 'badge-danger', acknowledged: 'badge-warn', resolved: 'badge-success' })[s] ?? 'badge-muted'
 
+/** Formatea fecha ISO a "DD/MM HH:MM" para la columna Hora. */
+/** Formats ISO date to "DD/MM HH:MM" for the time column. */
 function fmt(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+// true si hay alguna alerta resuelta en la página actual → muestra "Archivar resueltas"
+// true if there is any resolved alert on the current page → shows "Archive resolved"
 const hasResolved = computed(() => store.items.some(a => a.status === 'resolved'))
 
-// Agrupa alertas por agente
+/**
+ * Agrupa las alertas de la página actual por agente.
+ * Groups current page alerts by agent.
+ * El estado del agente se obtiene cruzando con dashStore.agents.
+ * Agent status is obtained by cross-referencing dashStore.agents.
+ * Ordena los grupos: más alertas abiertas primero.
+ * Orders groups: most open alerts first.
+ */
 const grouped = computed(() => {
   const map = {}
   for (const alert of store.items) {
@@ -155,15 +186,30 @@ const grouped = computed(() => {
   return Object.values(map).sort((a, b) => b.open - a.open)
 })
 
+/** Resetea a página 1 y recarga. Se llama al cambiar cualquier filtro. */
+/** Resets to page 1 and reloads. Called when any filter changes. */
 function reset() { page.value = 1; store.fetch(1) }
+
+/** Navega a la página indicada. */
+/** Navigates to the specified page. */
 function changePage(p) { page.value = p; store.fetch(p) }
 
+/**
+ * Alterna entre ver alertas activas y archivadas.
+ * Toggles between viewing active and archived alerts.
+ * Al activar el archivo, limpia el filtro de estado para mostrar todos.
+ * When activating archive, clears the status filter to show all.
+ */
 function toggleArchived() {
   store.filters.archived = store.filters.archived ? '' : '1'
   store.filters.status   = ''
   reset()
 }
 
+/**
+ * Archiva todas las alertas resueltas, opcionalmente de un agente.
+ * Archives all resolved alerts, optionally for one agent.
+ */
 async function archiveAll(agentId = null) {
   await store.archiveAllResolved(agentId)
   store.fetch(page.value)

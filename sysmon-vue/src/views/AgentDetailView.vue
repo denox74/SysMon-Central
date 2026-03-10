@@ -116,6 +116,23 @@
   </div>
 </template>
 
+<!--
+  AgentDetailView.vue — Vista de detalle de un agente individual
+  Individual agent detail view.
+
+  Tres niveles de actualización / Three update levels:
+    1. Polling ligero cada 10 s: solo agent + latest metrics (refreshLatest)
+       Lightweight poll every 10 s: only agent + latest metrics
+    2. Recarga completa de gráficas cada 60 s (loadMetrics)
+       Full chart reload every 60 s
+    3. Manual al cambiar el selector de rango de horas (loadMetrics)
+       Manual when changing the hours range selector
+
+  Chart.js se registra manualmente con solo los módulos necesarios para
+  mantener el bundle pequeño.
+  Chart.js is registered manually with only the required modules to
+  keep the bundle small.
+-->
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -123,31 +140,40 @@ import { panelApi } from '@/services/api'
 import { Line as LineChart } from 'vue-chartjs'
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from 'chart.js'
 
+// Registrar solo los módulos de Chart.js necesarios (tree-shaking manual)
+// Register only needed Chart.js modules (manual tree-shaking)
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
 
 const route  = useRoute()
-const id     = route.params.id
+const id     = route.params.id  // ID del agente desde la URL / Agent ID from URL
 
-const agent    = ref(null)
-const latest   = ref(null)
+// ── Estado / State ────────────────────────────────────────────────────────────
+const agent    = ref(null)  // datos del agente (modelo Agent) / agent data (Agent model)
+const latest   = ref(null)  // MetricSnapshot más reciente / most recent MetricSnapshot
 const loading  = ref(true)
-const hours    = ref(24)
+const hours    = ref(24)    // rango del historial de gráficas / chart history range
 const chartData = ref(null)
 const alerts   = ref([])
 const alertFilter = ref('open')
 
-// Auto-refresh state
+// Contadores de auto-refresh para la badge "↻ Xs" visible en el header
+// Auto-refresh counters for the "↻ Xs" badge visible in the header
 const countdown  = ref(10)
 let pollTimer    = null
 let chartTimer   = null
 let tickTimer    = null
 
+// ── Computed ──────────────────────────────────────────────────────────────────
 const statusBadge = computed(() => ({
   online: 'badge-success', warning: 'badge-warn', critical: 'badge-danger', offline: 'badge-muted'
 })[agent.value?.status] ?? 'badge-muted')
 
+// Los procesos vienen embebidos en el último snapshot como JSON
+// Processes come embedded in the latest snapshot as JSON
 const processes = computed(() => latest.value?.processes ?? [])
 
+// Convierte uptime_secs a "Xd Xh" legible
+// Converts uptime_secs to readable "Xd Xh"
 const uptimeStr = computed(() => {
   const s = latest.value?.uptime_secs
   if (!s) return '—'
@@ -155,6 +181,7 @@ const uptimeStr = computed(() => {
   return `${d}d ${h}h`
 })
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(iso) {
   if (!iso) return '—'
   const diff = Math.floor((Date.now() - new Date(iso)) / 1000)
@@ -166,6 +193,10 @@ function timeAgo(iso) {
 function sevClass(s)    { return {critical:'badge-danger',warning:'badge-warn',info:'badge-info'}[s]??'badge-muted' }
 function statusClass(s) { return {open:'badge-danger',acknowledged:'badge-warn',resolved:'badge-success'}[s]??'badge-muted' }
 
+/**
+ * Opciones de Chart.js compartidas por todas las gráficas, con color de línea variable.
+ * Shared Chart.js options for all charts, with variable line color.
+ */
 function chartOpts(color) {
   return {
     responsive: true,
@@ -179,6 +210,12 @@ function chartOpts(color) {
   }
 }
 
+/**
+ * Convierte el array de snapshots al formato de datasets que espera Chart.js.
+ * Converts the snapshot array to the dataset format expected by Chart.js.
+ * El eje X son horas:minutos; el eje Y es el valor de cada métrica.
+ * X axis is hours:minutes; Y axis is each metric value.
+ */
 function buildCharts(data) {
   const labels = data.map(d => new Date(d.collected_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
   const dataset = (key, color, label) => ({
@@ -187,7 +224,7 @@ function buildCharts(data) {
       label,
       data: data.map(d => d[key]),
       borderColor: color,
-      backgroundColor: color + '22',
+      backgroundColor: color + '22',  // alpha 13% para el área de relleno / 13% alpha for fill area
       fill: true,
       borderWidth: 2,
     }]
@@ -200,6 +237,14 @@ function buildCharts(data) {
   }
 }
 
+// ── Carga de datos / Data loading ─────────────────────────────────────────────
+
+/**
+ * Carga el historial de métricas para las gráficas y el snapshot más reciente.
+ * Loads metric history for charts and the latest snapshot.
+ * Se ejecuta en montaje, al cambiar el rango y cada 60 s.
+ * Runs on mount, when range changes, and every 60 s.
+ */
 async function loadMetrics() {
   const [mRes, lRes] = await Promise.all([
     panelApi.metrics(id, hours.value),
@@ -209,17 +254,28 @@ async function loadMetrics() {
   latest.value    = lRes.data.data
 }
 
+/**
+ * Carga las alertas del agente según el filtro de estado.
+ * Loads agent alerts according to the status filter.
+ */
 async function loadAlerts() {
   const { data } = await panelApi.agentAlerts(id, { status: alertFilter.value })
   alerts.value = data.data
 }
 
+/** Resuelve una alerta y recarga la lista de alertas. */
+/** Resolves an alert and reloads the alert list. */
 async function resolve(alertId) {
   await panelApi.resolveAlert(alertId)
   loadAlerts()
 }
 
-// Lightweight poll: only latest metrics + agent status (no chart reload)
+/**
+ * Polling ligero: recarga solo agent status + latest metrics (sin gráficas).
+ * Lightweight polling: reloads only agent status + latest metrics (no charts).
+ * Usa Promise.all para minimizar la latencia percibida.
+ * Uses Promise.all to minimize perceived latency.
+ */
 async function refreshLatest() {
   try {
     const [aRes, lRes] = await Promise.all([
@@ -231,21 +287,22 @@ async function refreshLatest() {
   } catch { /* silently ignore poll errors */ }
 }
 
+/**
+ * Inicia los tres timers: tick (1 s), poll ligero (10 s), recarga gráficas (60 s).
+ * Starts three timers: tick (1 s), lightweight poll (10 s), chart reload (60 s).
+ */
 function startPolling() {
   countdown.value = 10
 
-  // Countdown tick every second
-  tickTimer = setInterval(() => {
+  tickTimer  = setInterval(() => {
     countdown.value = countdown.value <= 1 ? 10 : countdown.value - 1
   }, 1000)
 
-  // Lightweight refresh every 10s
-  pollTimer = setInterval(refreshLatest, 10_000)
-
-  // Full chart refresh every 60s
-  chartTimer = setInterval(loadMetrics, 60_000)
+  pollTimer  = setInterval(refreshLatest, 10_000)
+  chartTimer = setInterval(loadMetrics,   60_000)
 }
 
+/** Limpia todos los timers al salir de la vista. / Clears all timers when leaving the view. */
 function stopPolling() {
   clearInterval(pollTimer)
   clearInterval(chartTimer)
@@ -253,6 +310,8 @@ function stopPolling() {
 }
 
 onMounted(async () => {
+  // Carga inicial: agent, métricas y alertas en paralelo cuando sea posible
+  // Initial load: agent, metrics and alerts in parallel where possible
   const { data } = await panelApi.agent(id)
   agent.value = data.agent
   loading.value = false

@@ -117,27 +117,69 @@
   </div>
 </template>
 
+<!--
+  RulesView.vue — Gestión de reglas de alerta (umbrales)
+  Alert rule management (thresholds).
+
+  Cada regla define: métrica, operador, umbral, severidad y cooldown.
+  Each rule defines: metric, operator, threshold, severity and cooldown.
+
+  Tipos de regla / Rule types:
+    - Global (agent_id = NULL): aplica a todos los agentes
+      Global (agent_id = NULL): applies to all agents
+    - Específica (agent_id = X): aplica solo al agente indicado
+      Specific (agent_id = X): applies only to the specified agent
+
+  Las reglas se evalúan en Laravel (MetricsService::evaluateServerRules)
+  al procesar cada snapshot. El campo cooldown_seconds evita spam de alertas.
+  Rules are evaluated in Laravel (MetricsService::evaluateServerRules)
+  when processing each snapshot. cooldown_seconds prevents alert spam.
+
+  metric_path usa notación de puntos para campos del snapshot, ej:
+    cpu.usage_percent → snapshot['cpu']['usage_percent']
+    disk_max_usage_percent → snapshot['disk_max_usage_percent'] (campo derivado)
+  metric_path uses dot notation for snapshot fields, e.g.:
+    cpu.usage_percent → snapshot['cpu']['usage_percent']
+    disk_max_usage_percent → snapshot['disk_max_usage_percent'] (derived field)
+-->
 <script setup>
 import { ref, onMounted } from 'vue'
 import { panelApi } from '@/services/api'
 
 const rules   = ref([])
-const modal   = ref(null)
-const editing = ref(null)
+const modal   = ref(null)   // datos del modal abierto (null = cerrado) / open modal data (null = closed)
+const editing = ref(null)   // ID de la regla siendo editada (null = modo crear) / ID of rule being edited (null = create mode)
 
+// Mapeos de badge y operador a símbolo legible / Badge and operator-to-symbol mappings
 const sevClass = s => ({critical:'badge-danger',warning:'badge-warn',info:'badge-info'})[s]??'badge-muted'
 const opLabel  = o => ({gte:'≥',gt:'>',lte:'≤',lt:'<'})[o]??o
 
+/**
+ * Abre el modal en modo "crear" con valores por defecto razonables.
+ * Opens the modal in "create" mode with sensible default values.
+ * El rule_key debe ser único en BD; se puede editar solo en creación.
+ * The rule_key must be unique in DB; editable only during creation.
+ */
 function openCreate() {
   editing.value = null
   modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false }
 }
 
+/**
+ * Abre el modal en modo "editar" precargando la regla seleccionada.
+ * Opens the modal in "edit" mode pre-filling the selected rule.
+ * El rule_key está deshabilitado en edición para preservar la clave.
+ * rule_key is disabled in edit mode to preserve the key.
+ */
 function openEdit(rule) {
   editing.value = rule.id
   modal.value = { ...rule }
 }
 
+/**
+ * Crea o actualiza la regla según si editing.value tiene valor.
+ * Creates or updates the rule depending on whether editing.value has a value.
+ */
 async function saveRule() {
   if (editing.value) {
     await panelApi.updateAlertRule(editing.value, modal.value)
@@ -148,17 +190,33 @@ async function saveRule() {
   loadRules()
 }
 
+/**
+ * Elimina una regla tras confirmación del usuario.
+ * Deletes a rule after user confirmation.
+ */
 async function deleteRule(id) {
   if (!confirm('¿Eliminar esta regla?')) return
   await panelApi.deleteAlertRule(id)
   loadRules()
 }
 
+/**
+ * Activa/desactiva la regla sin abrir el modal.
+ * Toggles the rule on/off without opening the modal.
+ * Actualiza localmente para respuesta inmediata en UI.
+ * Updates locally for immediate UI feedback.
+ */
 async function toggleRule(rule) {
   await panelApi.updateAlertRule(rule.id, { is_active: !rule.is_active })
   rule.is_active = !rule.is_active
 }
 
+/**
+ * Carga todas las reglas de alerta desde la API.
+ * Loads all alert rules from the API.
+ * La API devuelve reglas globales y específicas mezcladas; la BD ordena por agent_id nulls first.
+ * The API returns global and specific rules mixed; DB orders with agent_id nulls first.
+ */
 async function loadRules() {
   const { data } = await panelApi.alertRules()
   rules.value = data

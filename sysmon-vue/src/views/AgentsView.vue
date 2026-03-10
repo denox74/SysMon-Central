@@ -39,7 +39,12 @@
             class="agent-row"
             @click="$router.push(`/agents/${a.id}`)"
           >
-            <td><span :class="['status-dot', a.status]"></span></td>
+            <td>
+              <div class="status-cell">
+                <span :class="['status-dot', a.status]"></span>
+                <span :class="['status-text', a.status]">{{ a.status }}</span>
+              </div>
+            </td>
             <td>
               <span class="text-bright" style="font-weight:600">{{ a.name }}</span>
             </td>
@@ -293,6 +298,13 @@ async function saveRename() {
 
 .agent-row { cursor: pointer; }
 .empty-state { text-align: center; padding: 32px; color: var(--text-muted); }
+
+.status-cell { display: flex; align-items: center; gap: 6px; }
+.status-text { font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
+.status-text.online   { color: var(--accent2); }
+.status-text.offline  { color: var(--text-muted); }
+.status-text.warning  { color: var(--warn); }
+.status-text.critical { color: var(--danger); }
 
 .tag-label {
   display: inline-block;

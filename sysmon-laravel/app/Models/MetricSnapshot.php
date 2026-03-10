@@ -92,17 +92,60 @@ class MetricSnapshot extends Model
         $temps = $data['temperatures'] ?? [];
         $disks = $data['disks'] ?? [];
 
-        // Temperatura máxima entre todos los sensores
-        $maxTemp   = null;
-        $maxSensor = null;
+        // Temperatura máxima, preferiendo sensores de CPU sobre sensores de disco.
+        // Max temperature, preferring CPU sensors over disk sensors.
+        //
+        // El problema: el NVMe/SSD corre a T constante (ej 72 °C) > CPU en reposo,
+        // por lo que "max de todos" siempre punta el disco y nunca refleja carga de CPU.
+        // Problem: NVMe/SSD runs at constant T (e.g. 72 °C) > CPU at idle,
+        // so "max of all" always picks the drive and never reflects CPU load.
+        //
+        // Sensores considerados CPU: coretemp (Intel), k10temp/zenpower (AMD),
+        // acpitz (ACPI thermal zone), cpu_thermal/thermal (ARM/generic).
+        // CPU sensors: coretemp (Intel), k10temp/zenpower (AMD),
+        // acpitz (ACPI thermal zone), cpu_thermal/thermal (ARM/generic).
+        $cpuSensorPatterns = ['coretemp', 'k10temp', 'zenpower', 'acpitz', 'cpu_thermal', 'thermal', 'cpu'];
+
+        $maxTemp    = null;
+        $maxSensor  = null;
+        $cpuTemp    = null;
+        $cpuSensor  = null;
+
         foreach ($temps as $sensorName => $readings) {
-            foreach ($readings as $reading) {
-                $val = $reading['current'] ?? null;
-                if ($val !== null && ($maxTemp === null || $val > $maxTemp)) {
-                    $maxTemp   = $val;
-                    $maxSensor = $sensorName . '/' . ($reading['label'] ?? '?');
+            $nameLower   = strtolower($sensorName);
+            $isCpuSensor = false;
+            foreach ($cpuSensorPatterns as $pattern) {
+                if (str_contains($nameLower, $pattern)) {
+                    $isCpuSensor = true;
+                    break;
                 }
             }
+
+            foreach ($readings as $reading) {
+                $val = $reading['current'] ?? null;
+                if ($val === null) continue;
+
+                $label = $sensorName . '/' . ($reading['label'] ?? '?');
+
+                // Máximo global como fallback / Global max as fallback
+                if ($maxTemp === null || $val > $maxTemp) {
+                    $maxTemp   = $val;
+                    $maxSensor = $label;
+                }
+
+                // Máximo solo entre sensores de CPU / Max among CPU sensors only
+                if ($isCpuSensor && ($cpuTemp === null || $val > $cpuTemp)) {
+                    $cpuTemp   = $val;
+                    $cpuSensor = $label;
+                }
+            }
+        }
+
+        // Preferir sensor de CPU si existe; sino usar el max global
+        // Prefer CPU sensor if found; otherwise use global max
+        if ($cpuTemp !== null) {
+            $maxTemp   = $cpuTemp;
+            $maxSensor = $cpuSensor;
         }
 
         // Disco más lleno

@@ -6,7 +6,7 @@
       <span :class="['badge', statusBadge]">{{ statusLabel }}</span>
     </div>
 
-    <div class="agent-host">{{ agent.hostname || '—' }} · {{ agent.ip || '—' }}</div>
+    <div class="agent-host">{{ agent.hostname || '—' }} · {{ agent.ip_address || '—' }}</div>
     <div class="agent-distro text-muted">{{ agent.distro || 'Ubuntu' }}</div>
 
     <template v-if="m">
@@ -30,14 +30,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import MetricRow from './MetricRow.vue'
 
 const props = defineProps({ agent: Object })
 
-const m = props.agent.metrics
-
-const statusLabel = { online: 'Online', warning: 'Warning', critical: 'Crítico', offline: 'Offline' }[props.agent.status] ?? '—'
-const statusBadge = { online: 'badge-success', warning: 'badge-warn', critical: 'badge-danger', offline: 'badge-muted' }[props.agent.status] ?? 'badge-muted'
+// computed() hace que m, statusLabel y statusBadge se recalculen cada vez que
+// el prop `agent` cambia (el store lo reemplaza cada 10 s con datos nuevos).
+// computed() ensures m, statusLabel and statusBadge recalculate whenever the
+// `agent` prop changes (the store replaces it every 10 s with fresh data).
+const m           = computed(() => props.agent.metrics)
+const statusLabel = computed(() => ({ online: 'Online', warning: 'Warning', critical: 'Crítico', offline: 'Offline' }[props.agent.status] ?? '—'))
+const statusBadge = computed(() => ({ online: 'badge-success', warning: 'badge-warn', critical: 'badge-danger', offline: 'badge-muted' }[props.agent.status] ?? 'badge-muted'))
 
 function timeAgo(iso) {
   if (!iso) return '—'

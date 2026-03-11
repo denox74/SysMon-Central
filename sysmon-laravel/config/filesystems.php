@@ -25,7 +25,7 @@ return [
     | most supported storage drivers are configured here for reference.
     |
     | Supported drivers: "local", "ftp", "sftp", "s3"
-    |
+    | 
     */
 
     'disks' => [

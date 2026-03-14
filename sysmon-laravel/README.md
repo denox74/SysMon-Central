@@ -202,3 +202,5 @@ sysmon-laravel/
 └── routes/
     └── api.php
 ```
+
+https://www.paypal.com/donate/?business=YUXRZATJCAHS2&no_recurring=0&currency_code=EUR

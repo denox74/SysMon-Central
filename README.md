@@ -868,4 +868,13 @@ sudo systemctl restart sysmon-agent
 
 ---
 
+## Apoya el proyecto / Support the project
+
+Si este proyecto te resulta útil, puedes invitarme a un café:
+*If you find this project useful, you can buy me a coffee:*
+
+[![Donar con PayPal](https://www.paypalobjects.com/es_ES/ES/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?business=YUXRZATJCAHS2&no_recurring=0&currency_code=EUR)
+
+---
+
 *SysMon Central — Proyecto de monitorización open source / Open source monitoring project*

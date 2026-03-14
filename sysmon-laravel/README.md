@@ -169,6 +169,18 @@ Schedule::command('sysmon:prune --days=30 --force')->daily();
 
 ## Estructura de archivos
 
+---
+
+## Apoya el proyecto
+
+Si este proyecto te resulta útil, puedes invitarme a un café:
+
+[![Donar con PayPal](https://www.paypalobjects.com/es_ES/ES/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?business=YUXRZATJCAHS2&no_recurring=0&currency_code=EUR)
+
+---
+
+## Estructura de archivos
+
 ```
 sysmon-laravel/
 ├── app/
@@ -203,4 +215,4 @@ sysmon-laravel/
     └── api.php
 ```
 
-https://www.paypal.com/donate/?business=YUXRZATJCAHS2&no_recurring=0&currency_code=EUR
+

@@ -39,7 +39,17 @@ class AlertNotificationMail extends Mailable
         );
     }
 
-    private function buildHtml(): string
+    public function getSubject(): string
+    {
+        $emoji = match($this->alert->severity) {
+            'critical' => '🔴',
+            'warning'  => '🟡',
+            default    => '🔵',
+        };
+        return "{$emoji} [{$this->alert->severity}] {$this->agent->name} — {$this->alert->message}";
+    }
+
+    public function buildHtml(): string
     {
         $severityColor = match($this->alert->severity) {
             'critical' => '#ff3d5a',

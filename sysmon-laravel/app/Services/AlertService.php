@@ -10,7 +10,6 @@ use App\Models\EmailSetting;
 use App\Models\MetricSnapshot;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class AlertService
 {
@@ -124,24 +123,45 @@ class AlertService
                 : array_values(array_filter($settings->recipients ?? []));
 
             if (! empty($recipients) && ! empty($settings->from_address)) {
+                // Obtener contraseña SMTP (puede fallar si APP_KEY cambió)
                 try {
-                    // Aplicar SMTP y remitente desde BD en tiempo real
-                    config([
-                        'mail.mailers.smtp.host'       => $settings->smtp_host,
-                        'mail.mailers.smtp.port'       => $settings->smtp_port,
-                        'mail.mailers.smtp.username'   => $settings->smtp_username,
-                        'mail.mailers.smtp.password'   => $settings->smtp_password,
-                        'mail.mailers.smtp.encryption' => $settings->smtp_encryption === 'none'
-                                                            ? null
-                                                            : $settings->smtp_encryption,
-                        'mail.from.address'            => $settings->from_address,
-                        'mail.from.name'               => $settings->from_name,
-                    ]);
+                    $smtpPassword = $settings->smtp_password;
+                } catch (\Throwable $e) {
+                    Log::error("AlertService::notify — no se puede leer smtp_password: {$e->getMessage()}");
+                    return;
+                }
 
-                    // Purgar el mailer para que use la config actualizada en BD
-                    Mail::purge('smtp');
+                try {
+                    // Usar Symfony Mailer directamente (bypass Laravel Mail facade cacheada)
+                    $encryption = $settings->smtp_encryption === 'none' ? '' : $settings->smtp_encryption;
+                    $dsn = sprintf(
+                        'smtp://%s:%s@%s:%d',
+                        rawurlencode($settings->smtp_username ?? ''),
+                        rawurlencode($smtpPassword ?? ''),
+                        $settings->smtp_host,
+                        $settings->smtp_port,
+                    );
+                    if ($encryption) {
+                        $dsn .= '?encryption=' . $encryption;
+                    }
 
-                    Mail::to($recipients)->queue(new AlertNotificationMail($agent, $alert));
+                    $transport = \Symfony\Component\Mailer\Transport::fromDsn($dsn);
+                    $mailer    = new \Symfony\Component\Mailer\Mailer($transport);
+                    $mailable  = new AlertNotificationMail($agent, $alert);
+
+                    foreach ($recipients as $to) {
+                        $email = (new \Symfony\Component\Mime\Email())
+                            ->from(new \Symfony\Component\Mime\Address(
+                                $settings->from_address,
+                                $settings->from_name ?? 'SysMon'
+                            ))
+                            ->to($to)
+                            ->subject($mailable->getSubject())
+                            ->html($mailable->buildHtml());
+
+                        $mailer->send($email);
+                    }
+
                     $alert->update([
                         'notified_email' => true,
                         'notified_at'    => now(),

@@ -179,6 +179,7 @@ watch(() => modal.value?.metric_path, (path) => {
   if (!modal.value || editing.value) return
   if (path === 'agent_offline') {
     modal.value.message_template = 'El agente lleva offline más del tiempo configurado'
+    modal.value.rule_key = modal.value.rule_key || 'agent_offline'
     modal.value.operator = 'gte'
     modal.value.threshold = 1
   } else if (modal.value.message_template === 'El agente lleva offline más del tiempo configurado') {

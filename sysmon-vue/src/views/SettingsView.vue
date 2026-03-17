@@ -138,11 +138,17 @@
         </p>
       </div>
 
-      <!-- ── Botón guardar ─────────────────────────────────────────── -->
-      <div style="display:flex;justify-content:flex-end">
-        <button class="btn btn-primary" @click="save" :disabled="saving">
+      <!-- ── Botones ───────────────────────────────────────────────── -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;align-items:center">
+        <button class="btn btn-secondary" @click="testEmail" :disabled="testing || saving">
+          {{ testing ? 'Enviando…' : '✉ Enviar email de prueba' }}
+        </button>
+        <button class="btn btn-primary" @click="save" :disabled="saving || testing">
           {{ saving ? 'Guardando…' : 'Guardar configuración' }}
         </button>
+      </div>
+      <div v-if="testResult" class="banner" :class="testResult.ok ? 'banner-ok' : 'banner-err'">
+        {{ testResult.ok ? '✓' : '✗' }} {{ testResult.message }}
       </div>
 
     </template>
@@ -171,6 +177,8 @@ const error        = ref('')
 const showPass     = ref(false)
 const newRecipient = ref('')
 const recipientError = ref('')
+const testing      = ref(false)
+const testResult   = ref(null)
 
 const form = ref({
   smtp_host:         '',
@@ -245,6 +253,20 @@ async function save() {
   }
 }
 
+async function testEmail() {
+  testResult.value = null
+  testing.value = true
+  try {
+    const { data } = await panelApi.testEmailSettings()
+    testResult.value = data
+  } catch (e) {
+    testResult.value = { ok: false, message: e?.response?.data?.message ?? 'Error al enviar el email de prueba.' }
+  } finally {
+    testing.value = false
+    setTimeout(() => { testResult.value = null }, 8000)
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -304,4 +326,14 @@ onMounted(load)
 .banner { padding: 10px 16px; border-radius: var(--radius); font-size: 12px; font-weight: 600; }
 .banner-ok  { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--accent2); }
 .banner-err { background: rgba(255,77,77,0.08);  border: 1px solid rgba(255,77,77,0.2);  color: var(--danger); }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+  padding: 8px 16px; border-radius: var(--radius); font-size: 12px; cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--accent); background: rgba(0,212,255,0.06); }
+.btn-secondary:disabled { opacity: 0.5; cursor: default; }
 </style>

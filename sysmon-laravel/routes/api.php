@@ -69,4 +69,5 @@ Route::prefix('panel')
         // ── Configuración de email ────────────────────────────────
         Route::get('settings/email',            [PanelController::class, 'getEmailSettings']);
         Route::put('settings/email',            [PanelController::class, 'updateEmailSettings']);
+        Route::post('settings/email/test',      [PanelController::class, 'testEmailSettings']);
     });

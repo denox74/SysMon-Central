@@ -65,6 +65,7 @@ export const panelApi = {
   // Configuración de email
   getEmailSettings:    ()     => api.get('/panel/settings/email'),
   updateEmailSettings: (data) => api.put('/panel/settings/email', data),
+  testEmailSettings:   ()     => api.post('/panel/settings/email/test'),
 }
 
 export default api

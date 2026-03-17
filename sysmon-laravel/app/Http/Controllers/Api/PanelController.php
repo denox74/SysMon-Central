@@ -11,6 +11,7 @@ use App\Models\MetricSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Endpoints consumidos por el panel Vue.
@@ -400,5 +401,37 @@ class PanelController extends Controller
         $setting->update($data);
 
         return response()->json(['ok' => true]);
+    }
+
+    /** POST /api/panel/settings/email/test */
+    public function testEmailSettings(Request $request): JsonResponse
+    {
+        $s = EmailSetting::current();
+
+        if (empty($s->smtp_host) || empty($s->from_address)) {
+            return response()->json(['ok' => false, 'message' => 'Configura y guarda el servidor SMTP antes de probar.'], 422);
+        }
+
+        $to = $request->input('to') ?: ($s->recipients[0] ?? $s->from_address);
+
+        try {
+            config([
+                'mail.mailers.smtp.host'       => $s->smtp_host,
+                'mail.mailers.smtp.port'       => $s->smtp_port,
+                'mail.mailers.smtp.username'   => $s->smtp_username,
+                'mail.mailers.smtp.password'   => $s->smtp_password,
+                'mail.mailers.smtp.encryption' => $s->smtp_encryption === 'none' ? null : $s->smtp_encryption,
+                'mail.from.address'            => $s->from_address,
+                'mail.from.name'               => $s->from_name,
+            ]);
+
+            Mail::raw('Este es un email de prueba enviado desde SysMon para verificar que la configuración SMTP es correcta.', function ($m) use ($to, $s) {
+                $m->to($to)->subject('[SysMon] Email de prueba');
+            });
+
+            return response()->json(['ok' => true, 'message' => "Email de prueba enviado a {$to}"]);
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

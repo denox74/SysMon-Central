@@ -53,6 +53,11 @@ class AlertService
             ->get();
 
         foreach ($rules as $rule) {
+            // Las reglas de tipo agent_offline se evalúan en CheckOfflineAgents, no aquí
+            if ($rule->metric_path === 'agent_offline') {
+                continue;
+            }
+
             $value = $this->extractValue($payload, $rule->metric_path);
 
             if ($value === null) {

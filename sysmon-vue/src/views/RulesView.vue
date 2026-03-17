@@ -22,7 +22,12 @@
             <td class="text-bright" style="font-weight:600">{{ r.name }}</td>
             <td class="text-accent" style="font-size:11px;font-family:var(--font-mono)">{{ r.metric_path }}</td>
             <td style="font-size:12px">
-              <code style="color:var(--warn)">{{ opLabel(r.operator) }} {{ r.threshold }}</code>
+              <template v-if="r.metric_path === 'agent_offline'">
+                <span style="color:var(--text-muted);font-style:italic">Desconectado</span>
+              </template>
+              <template v-else>
+                <code style="color:var(--warn)">{{ opLabel(r.operator) }} {{ r.threshold }}</code>
+              </template>
             </td>
             <td><span :class="['badge', sevClass(r.severity)]">{{ r.severity }}</span></td>
             <td style="font-size:12px">{{ r.notify_email ? '✓' : '—' }}</td>
@@ -71,21 +76,31 @@
                 <option value="cpu.load_5m">cpu.load_5m</option>
                 <option value="disk_max_usage_percent">disk_max_usage_percent</option>
                 <option value="temp_max_celsius">temp_max_celsius</option>
+                <option value="agent_offline">agent_offline — Agente desconectado</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Operador</label>
-              <select class="input" v-model="modal.operator">
-                <option value="gte">≥ Mayor o igual</option>
-                <option value="gt">› Mayor que</option>
-                <option value="lte">≤ Menor o igual</option>
-                <option value="lt">‹ Menor que</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Umbral *</label>
-              <input class="input" type="number" v-model="modal.threshold" placeholder="ej: 90" />
-            </div>
+            <template v-if="modal.metric_path === 'agent_offline'">
+              <div class="form-group" style="grid-column:1/-1">
+                <p class="field-hint" style="color:var(--text-muted);font-size:11px;padding:8px 12px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);border-radius:var(--radius)">
+                  ⓘ Esta regla dispara cuando el agente lleva sin enviar datos más tiempo del configurado en su perfil. No necesita umbral numérico.
+                </p>
+              </div>
+            </template>
+            <template v-else>
+              <div class="form-group">
+                <label class="form-label">Operador</label>
+                <select class="input" v-model="modal.operator">
+                  <option value="gte">≥ Mayor o igual</option>
+                  <option value="gt">› Mayor que</option>
+                  <option value="lte">≤ Menor o igual</option>
+                  <option value="lt">‹ Menor que</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Umbral *</label>
+                <input class="input" type="number" v-model="modal.threshold" placeholder="ej: 90" />
+              </div>
+            </template>
             <div class="form-group">
               <label class="form-label">Severidad</label>
               <select class="input" v-model="modal.severity">
@@ -143,7 +158,7 @@
     disk_max_usage_percent → snapshot['disk_max_usage_percent'] (derived field)
 -->
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { panelApi } from '@/services/api'
 
 const rules   = ref([])
@@ -160,6 +175,17 @@ const opLabel  = o => ({gte:'≥',gt:'>',lte:'≤',lt:'<'})[o]??o
  * El rule_key debe ser único en BD; se puede editar solo en creación.
  * The rule_key must be unique in DB; editable only during creation.
  */
+watch(() => modal.value?.metric_path, (path) => {
+  if (!modal.value || editing.value) return
+  if (path === 'agent_offline') {
+    modal.value.message_template = 'El agente lleva offline más del tiempo configurado'
+    modal.value.operator = 'gte'
+    modal.value.threshold = 1
+  } else if (modal.value.message_template === 'El agente lleva offline más del tiempo configurado') {
+    modal.value.message_template = 'Métrica al {value}% (umbral: {threshold}%)'
+  }
+})
+
 function openCreate() {
   editing.value = null
   modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false }

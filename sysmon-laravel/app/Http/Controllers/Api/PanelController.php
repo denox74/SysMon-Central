@@ -422,11 +422,17 @@ class PanelController extends Controller
         $to = $request->input('to') ?: ($s->recipients[0] ?? $s->from_address);
 
         try {
+            $smtpPassword = $s->smtp_password;
+        } catch (\Throwable) {
+            return response()->json(['ok' => false, 'message' => 'La contraseña SMTP no se puede leer (APP_KEY cambió). Vuelve a guardar la contraseña en Configuración Email.'], 422);
+        }
+
+        try {
             config([
                 'mail.mailers.smtp.host'       => $s->smtp_host,
                 'mail.mailers.smtp.port'       => $s->smtp_port,
                 'mail.mailers.smtp.username'   => $s->smtp_username,
-                'mail.mailers.smtp.password'   => $s->smtp_password,
+                'mail.mailers.smtp.password'   => $smtpPassword,
                 'mail.mailers.smtp.encryption' => $s->smtp_encryption === 'none' ? null : $s->smtp_encryption,
                 'mail.from.address'            => $s->from_address,
                 'mail.from.name'               => $s->from_name,

@@ -25,7 +25,10 @@ class MetricsService
      */
     public function process(Agent $agent, array $payload): MetricSnapshot
     {
-        return DB::transaction(function () use ($agent, $payload) {
+        // Transacción mínima: solo guardar snapshot y alertas del agente.
+        // La evaluación de reglas del servidor va FUERA para que un fallo SMTP
+        // no revierta el snapshot ni bloquee la transacción.
+        $snapshot = DB::transaction(function () use ($agent, $payload) {
 
             // 1. Actualizar info del agente con los datos del sistema
             $this->updateAgentInfo($agent, $payload);
@@ -38,20 +41,12 @@ class MetricsService
             // 3. Alertas enviadas por el propio agente
             $agentAlerts = $payload['alerts'] ?? [];
             foreach ($agentAlerts as $alertData) {
-                $this->alertService->saveFromAgent($agent, $snapshot, $alertData);
+                try {
+                    $this->alertService->saveFromAgent($agent, $snapshot, $alertData);
+                } catch (\Throwable $e) {
+                    Log::error("saveFromAgent failed for {$agent->name}: {$e->getMessage()}");
+                }
             }
-
-            // 4. Evaluar umbrales configurados en el servidor
-            //    Enriquecer payload con campos calculados del snapshot (ej. disk_max_usage_percent)
-            //    para que las reglas con esos metric_path puedan resolverse.
-            $enrichedPayload = array_merge($payload, array_filter([
-                'disk_max_usage_percent' => $snapshot->disk_max_usage_percent,
-                'temp_max_celsius'       => $snapshot->temp_max_celsius,
-            ], fn($v) => $v !== null));
-            $this->alertService->evaluateServerRules($agent, $snapshot, $enrichedPayload);
-
-            // 5. Actualizar estado del agente según severidad actual
-            $this->updateAgentStatus($agent, $snapshot);
 
             Log::info("Snapshot guardado", [
                 'agent' => $agent->name,
@@ -62,6 +57,23 @@ class MetricsService
 
             return $snapshot;
         });
+
+        // 4. Evaluar umbrales del servidor FUERA de la transacción
+        //    (el email se envía aquí; si falla, el snapshot ya está guardado)
+        try {
+            $enrichedPayload = array_merge($payload, array_filter([
+                'disk_max_usage_percent' => $snapshot->disk_max_usage_percent,
+                'temp_max_celsius'       => $snapshot->temp_max_celsius,
+            ], fn($v) => $v !== null));
+            $this->alertService->evaluateServerRules($agent, $snapshot, $enrichedPayload);
+        } catch (\Throwable $e) {
+            Log::error("evaluateServerRules failed for {$agent->name}: {$e->getMessage()}");
+        }
+
+        // 5. Actualizar estado del agente (después de crear alertas)
+        $this->updateAgentStatus($agent, $snapshot);
+
+        return $snapshot;
     }
 
     // ── Privados ────────────────────────────────────────────────────

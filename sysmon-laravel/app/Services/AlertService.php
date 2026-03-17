@@ -166,6 +166,13 @@ class AlertService
             return;
         }
 
+        // Cooldown entre emails: tiempo mínimo desde el último email para esta alerta
+        if ($rule && $rule->email_cooldown_seconds !== null && $alert->notified_at !== null) {
+            if (now()->diffInSeconds($alert->notified_at) < $rule->email_cooldown_seconds) {
+                return;
+            }
+        }
+
         // Email
         if ($agent->notify_email) {
             // Destinatario: email propio del agente, o los destinatarios globales
@@ -220,7 +227,7 @@ class AlertService
 
                     // Incrementar contador de emails enviados para esta alerta abierta
                     $alert->increment('email_sent_count');
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Log::error("Error enviando email de alerta: {$e->getMessage()}");
                 }
             }

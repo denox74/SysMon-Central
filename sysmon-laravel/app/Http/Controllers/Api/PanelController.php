@@ -324,8 +324,9 @@ class PanelController extends Controller
             'severity'         => ['required', 'in:info,warning,critical'],
             'message_template' => ['required', 'string', 'max:255'],
             'cooldown_seconds' => ['integer', 'min:60'],
-            'notify_email'     => ['boolean'],
-            'max_email_count'  => ['nullable', 'integer', 'min:1'],
+            'notify_email'           => ['boolean'],
+            'max_email_count'        => ['nullable', 'integer', 'min:1'],
+            'email_cooldown_seconds' => ['nullable', 'integer', 'min:60'],
         ]);
 
         $rule = AlertRule::create($data);
@@ -341,9 +342,10 @@ class PanelController extends Controller
             'severity'         => ['in:info,warning,critical'],
             'message_template' => ['string', 'max:255'],
             'cooldown_seconds' => ['integer', 'min:60'],
-            'notify_email'     => ['boolean'],
-            'is_active'        => ['boolean'],
-            'max_email_count'  => ['nullable', 'integer', 'min:1'],
+            'notify_email'           => ['boolean'],
+            'is_active'              => ['boolean'],
+            'max_email_count'        => ['nullable', 'integer', 'min:1'],
+            'email_cooldown_seconds' => ['nullable', 'integer', 'min:60'],
         ]);
 
         $rule->update($data);

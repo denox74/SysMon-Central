@@ -130,6 +130,11 @@
               <p class="field-hint">Número máximo de emails que se envían mientras la alerta permanezca abierta. Al resolverse y volver a dispararse, el contador se reinicia.</p>
               <p v-if="editing" class="field-hint" style="margin-top:4px">Emails enviados en la alerta actual: <strong>{{ modal.email_sent_count ?? 0 }}</strong></p>
             </div>
+            <div v-if="modal.notify_email" class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Cooldown entre emails (segundos)</label>
+              <input class="input" type="number" v-model.number="modal.email_cooldown_seconds" min="60" placeholder="Dejar vacío para enviar en cada comprobación" />
+              <p class="field-hint">Tiempo mínimo entre emails para la misma alerta abierta. Independiente del cooldown de comprobación: la alerta puede activarse varias veces sin enviar email hasta que pase este tiempo.</p>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-ghost" @click="modal = null">Cancelar</button>
@@ -198,7 +203,7 @@ watch(() => modal.value?.metric_path, (path) => {
 
 function openCreate() {
   editing.value = null
-  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false, max_email_count: null }
+  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false, max_email_count: null, email_cooldown_seconds: null }
 }
 
 /**

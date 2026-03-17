@@ -11,7 +11,6 @@ use App\Models\MetricSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Endpoints consumidos por el panel Vue.
@@ -439,22 +438,29 @@ class PanelController extends Controller
         }
 
         try {
-            config([
-                'mail.mailers.smtp.host'       => $s->smtp_host,
-                'mail.mailers.smtp.port'       => $s->smtp_port,
-                'mail.mailers.smtp.username'   => $s->smtp_username,
-                'mail.mailers.smtp.password'   => $smtpPassword,
-                'mail.mailers.smtp.encryption' => $s->smtp_encryption === 'none' ? null : $s->smtp_encryption,
-                'mail.from.address'            => $s->from_address,
-                'mail.from.name'               => $s->from_name,
-            ]);
+            // Usar Symfony Mailer directamente para garantizar las credenciales de BD
+            $encryption = $s->smtp_encryption === 'none' ? '' : $s->smtp_encryption;
+            $dsn = sprintf(
+                'smtp://%s:%s@%s:%d',
+                rawurlencode($s->smtp_username),
+                rawurlencode($smtpPassword),
+                $s->smtp_host,
+                $s->smtp_port,
+            );
+            if ($encryption) {
+                $dsn .= '?encryption=' . $encryption;
+            }
 
-            // Purgar el mailer para que use la nueva config (no la cacheada al arrancar)
-            Mail::purge('smtp');
+            $transport = \Symfony\Component\Mailer\Transport::fromDsn($dsn);
+            $mailer    = new \Symfony\Component\Mailer\Mailer($transport);
 
-            Mail::raw('Este es un email de prueba enviado desde SysMon para verificar que la configuración SMTP es correcta.', function ($m) use ($to, $s) {
-                $m->to($to)->subject('[SysMon] Email de prueba');
-            });
+            $email = (new \Symfony\Component\Mime\Email())
+                ->from(new \Symfony\Component\Mime\Address($s->from_address, $s->from_name))
+                ->to($to)
+                ->subject('[SysMon] Email de prueba')
+                ->text('Este es un email de prueba enviado desde SysMon para verificar que la configuración SMTP es correcta.');
+
+            $mailer->send($email);
 
             return response()->json(['ok' => true, 'message' => "Email de prueba enviado a {$to}"]);
         } catch (\Exception $e) {

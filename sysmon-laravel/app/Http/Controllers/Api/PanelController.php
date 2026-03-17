@@ -400,6 +400,17 @@ class PanelController extends Controller
 
         $setting = EmailSetting::current();
 
+        // Si la contraseña cifrada en BD es inválida (APP_KEY cambió), limpiar el valor
+        // original para que Eloquent no intente descifrarla al comparar cambios
+        try {
+            $setting->smtp_password;
+        } catch (\Throwable) {
+            $setting->setRawAttributes(
+                array_merge($setting->getAttributes(), ['smtp_password' => null]),
+                true   // sync originals
+            );
+        }
+
         // Si el password viene como '••••••' (no editado), conservar el existente
         if (($data['smtp_password'] ?? '') === '••••••' || ($data['smtp_password'] ?? '') === '') {
             unset($data['smtp_password']);

@@ -24,10 +24,10 @@ return new class extends Migration
             $table->string('from_name', 100)->default('SysMon');
 
             // ── Destinatarios (array JSON) ────────────────────────
-            $table->json('recipients')->default('[]');
+            $table->json('recipients')->nullable();
 
             // ── Severidades que disparan email ────────────────────
-            $table->json('notify_severities')->default('["warning","critical"]');
+            $table->json('notify_severities')->nullable();
 
             $table->timestamps();
         });

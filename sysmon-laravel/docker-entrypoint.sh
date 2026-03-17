@@ -33,7 +33,10 @@ fi
     echo "DB_PASSWORD=${DB_PASSWORD:-sysmon_pass}"
 } > .env.tmp && mv .env.tmp .env
 
-php artisan key:generate --force
+# Solo generar APP_KEY si no existe ya una válida (evita invalidar datos cifrados en BD)
+if ! grep -q "^APP_KEY=base64:" .env; then
+    php artisan key:generate --force
+fi
 php artisan config:clear
 
 # ── Base de datos ─────────────────────────────────────────────────

@@ -361,11 +361,18 @@ class PanelController extends Controller
     {
         $s = EmailSetting::current();
 
+        // La contraseña está cifrada con APP_KEY; si cambió entre reinicios la ignoramos
+        try {
+            $hasPassword = ! empty($s->smtp_password);
+        } catch (\Throwable) {
+            $hasPassword = false;
+        }
+
         return response()->json([
             'smtp_host'         => $s->smtp_host,
             'smtp_port'         => $s->smtp_port,
             'smtp_username'     => $s->smtp_username,
-            'smtp_password'     => $s->smtp_password ? '••••••' : '',  // nunca devolver la contraseña real
+            'smtp_password'     => $hasPassword ? '••••••' : '',
             'smtp_encryption'   => $s->smtp_encryption,
             'from_address'      => $s->from_address,
             'from_name'         => $s->from_name,

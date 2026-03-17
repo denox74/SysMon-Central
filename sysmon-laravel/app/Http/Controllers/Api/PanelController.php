@@ -34,15 +34,17 @@ class PanelController extends Controller
         ->map(function (Agent $agent) {
             $snap = $agent->snapshots->first();
             return [
-                'id'           => $agent->id,
-                'name'         => $agent->name,
-                'hostname'     => $agent->hostname,
-                'ip_address'   => $agent->ip_address,
-                'distro'       => $agent->distro,
-                'notes'        => $agent->notes,
-                'status'       => $agent->isOffline() ? 'offline' : $agent->status,
-                'last_seen_at' => $agent->last_seen_at?->toISOString(),
-                'open_alerts'  => $agent->openAlerts()->count(),
+                'id'              => $agent->id,
+                'name'            => $agent->name,
+                'hostname'        => $agent->hostname,
+                'ip_address'      => $agent->ip_address,
+                'distro'          => $agent->distro,
+                'notes'           => $agent->notes,
+                'notify_email'    => $agent->notify_email,
+                'notify_email_to' => $agent->notify_email_to,
+                'status'          => $agent->isOffline() ? 'offline' : $agent->status,
+                'last_seen_at'    => $agent->last_seen_at?->toISOString(),
+                'open_alerts'     => $agent->openAlerts()->count(),
                 'metrics'      => $snap ? [
                     'cpu_percent'  => $snap->cpu_usage_percent,
                     'ram_percent'  => $snap->ram_usage_percent,

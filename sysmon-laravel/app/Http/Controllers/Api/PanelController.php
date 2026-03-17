@@ -325,6 +325,7 @@ class PanelController extends Controller
             'message_template' => ['required', 'string', 'max:255'],
             'cooldown_seconds' => ['integer', 'min:60'],
             'notify_email'     => ['boolean'],
+            'max_email_count'  => ['nullable', 'integer', 'min:1'],
         ]);
 
         $rule = AlertRule::create($data);
@@ -342,6 +343,7 @@ class PanelController extends Controller
             'cooldown_seconds' => ['integer', 'min:60'],
             'notify_email'     => ['boolean'],
             'is_active'        => ['boolean'],
+            'max_email_count'  => ['nullable', 'integer', 'min:1'],
         ]);
 
         $rule->update($data);
@@ -468,5 +470,16 @@ class PanelController extends Controller
         } catch (\Exception $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /** DELETE /api/panel/alerts/archived */
+    public function deleteArchivedAlerts(Request $request): JsonResponse
+    {
+        $query = Alert::whereNotNull('archived_at');
+        if ($agentId = $request->get('agent_id')) {
+            $query->where('agent_id', $agentId);
+        }
+        $count = $query->delete();
+        return response()->json(['ok' => true, 'deleted' => $count]);
     }
 }

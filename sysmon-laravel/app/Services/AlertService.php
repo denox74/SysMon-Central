@@ -8,30 +8,48 @@ use App\Models\Alert;
 use App\Models\AlertRule;
 use App\Models\EmailSetting;
 use App\Models\MetricSnapshot;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class AlertService
 {
     /**
-     * Guarda una alerta enviada por el agente.
-     * Evita duplicados usando cooldown en cache.
+     * Guarda una alerta enviada por el agente (grouping + DB-based cooldown).
      */
     public function saveFromAgent(Agent $agent, MetricSnapshot $snapshot, array $data): ?Alert
     {
-        $cacheKey = "alert_cooldown:{$agent->id}:{$data['rule']}";
+        $ruleName = $data['rule'] ?? 'unknown';
 
-        // Si está en cooldown, no crear otra alerta igual
-        if (Cache::has($cacheKey)) {
+        // Buscar alerta abierta o acknowledged del mismo tipo
+        $existing = Alert::where('agent_id', $agent->id)
+            ->where('rule_name', $ruleName)
+            ->whereIn('status', ['open', 'acknowledged'])
+            ->first();
+
+        // Cooldown basado en BD (updated_at de la alerta existente)
+        $lastActivity = $existing?->updated_at ?? now()->subDays(999);
+        if (now()->diffInSeconds($lastActivity) < 300) { // 5 min por defecto para alertas de agente
             return null;
         }
 
-        $alert = Alert::fromAgentAlert($agent->id, $snapshot->id, $data);
+        if ($existing) {
+            $occurrences   = $existing->occurrences ?? [];
+            $occurrences[] = [
+                'value'    => round($data['value'] ?? 0, 2),
+                'fired_at' => now()->toISOString(),
+                'message'  => $data['message'] ?? '',
+            ];
+            $existing->update([
+                'occurrences'       => $occurrences,
+                'occurrences_count' => count($occurrences),
+                'value'             => $data['value'] ?? $existing->value,
+                'message'           => $data['message'] ?? $existing->message,
+                'status'            => 'open',
+            ]);
+            $alert = $existing;
+        } else {
+            $alert = Alert::fromAgentAlert($agent->id, $snapshot->id, $data);
+        }
 
-        // Cooldown de 5 minutos por defecto (en producción vendrá de la regla)
-        Cache::put($cacheKey, true, now()->addMinutes(5));
-
-        // Notificar si corresponde
         $this->notify($agent, $alert);
 
         return $alert;
@@ -67,8 +85,15 @@ class AlertService
                 continue;
             }
 
-            $cacheKey = "server_alert_cooldown:{$agent->id}:{$rule->rule_key}";
-            if (Cache::has($cacheKey)) {
+            // Buscar alerta abierta o acknowledged del mismo tipo (agrupación)
+            $existing = Alert::where('agent_id', $agent->id)
+                ->where('rule_name', $rule->rule_key)
+                ->whereIn('status', ['open', 'acknowledged'])
+                ->first();
+
+            // Cooldown basado en BD: tiempo desde la última actividad de la alerta
+            $lastActivity = $existing?->updated_at ?? now()->subDays(999);
+            if (now()->diffInSeconds($lastActivity) < $rule->cooldown_seconds) {
                 continue;
             }
 
@@ -78,33 +103,53 @@ class AlertService
                 $rule->message_template
             );
 
-            $alert = Alert::create([
-                'agent_id'           => $agent->id,
-                'metric_snapshot_id' => $snapshot->id,
-                'rule_name'          => $rule->rule_key,
-                'metric'             => $rule->metric_path,
-                'severity'           => $rule->severity,
-                'source'             => 'server',
-                'value'              => $value,
-                'threshold'          => $rule->threshold,
-                'message'            => $message,
-                'fired_at'           => now(),
-                'status'             => 'open',
-            ]);
-
-            Cache::put($cacheKey, true, now()->addSeconds($rule->cooldown_seconds));
+            if ($existing) {
+                // Añadir ocurrencia al grupo existente
+                $occurrences   = $existing->occurrences ?? [];
+                $occurrences[] = [
+                    'value'    => round($value, 2),
+                    'fired_at' => now()->toISOString(),
+                    'message'  => $message,
+                ];
+                $existing->update([
+                    'occurrences'        => $occurrences,
+                    'occurrences_count'  => count($occurrences),
+                    'value'              => $value,
+                    'message'            => $message,
+                    'metric_snapshot_id' => $snapshot->id,
+                    'status'             => 'open',
+                ]);
+                $alert = $existing;
+            } else {
+                // Crear nueva alerta (sin ocurrencias previas)
+                $alert = Alert::create([
+                    'agent_id'           => $agent->id,
+                    'metric_snapshot_id' => $snapshot->id,
+                    'rule_name'          => $rule->rule_key,
+                    'metric'             => $rule->metric_path,
+                    'severity'           => $rule->severity,
+                    'source'             => 'server',
+                    'value'              => $value,
+                    'threshold'          => $rule->threshold,
+                    'message'            => $message,
+                    'fired_at'           => now(),
+                    'status'             => 'open',
+                    'occurrences_count'  => 0,
+                    'email_sent_count'   => 0,
+                ]);
+            }
 
             if ($rule->notify_email) {
-                $this->notify($agent, $alert);
+                $this->notify($agent, $alert, $rule);
             }
         }
     }
 
     /**
      * Envía notificación por email.
-     * Preparado para añadir más canales (Slack, Telegram, webhook…).
+     * $rule opcional para verificar el límite de emails por alerta abierta.
      */
-    public function notify(Agent $agent, Alert $alert): void
+    public function notify(Agent $agent, Alert $alert, ?AlertRule $rule = null): void
     {
         // Configuración de email almacenada en BD (editable desde el panel)
         $settings = EmailSetting::current();
@@ -112,6 +157,12 @@ class AlertService
         // Filtrar por severidades habilitadas para email
         $allowedSeverities = $settings->notify_severities ?? ['warning', 'critical'];
         if (! in_array($alert->severity, $allowedSeverities)) {
+            return;
+        }
+
+        // Límite de emails por alerta abierta (max_email_count en la regla)
+        if ($rule && $rule->max_email_count !== null
+            && $alert->email_sent_count >= $rule->max_email_count) {
             return;
         }
 
@@ -166,6 +217,9 @@ class AlertService
                         'notified_email' => true,
                         'notified_at'    => now(),
                     ]);
+
+                    // Incrementar contador de emails enviados para esta alerta abierta
+                    $alert->increment('email_sent_count');
                 } catch (\Exception $e) {
                     Log::error("Error enviando email de alerta: {$e->getMessage()}");
                 }

@@ -7,7 +7,6 @@ use App\Models\Alert;
 use App\Models\AlertRule;
 use App\Services\AlertService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 
 class CheckOfflineAgents extends Command
 {
@@ -53,9 +52,15 @@ class CheckOfflineAgents extends Command
             return;
         }
 
-        // Cooldown: un email por agente cada $rule->cooldown_seconds (mínimo 10 min)
-        $cacheKey = "offline_alert:{$agent->id}:{$rule->rule_key}";
-        if (Cache::has($cacheKey)) {
+        // Buscar alerta abierta o acknowledged del mismo tipo (agrupación)
+        $existing = Alert::where('agent_id', $agent->id)
+            ->where('rule_name', $rule->rule_key)
+            ->whereIn('status', ['open', 'acknowledged'])
+            ->first();
+
+        // Cooldown basado en BD (updated_at de la alerta existente)
+        $lastActivity = $existing?->updated_at ?? now()->subDays(999);
+        if (now()->diffInSeconds($lastActivity) < $rule->cooldown_seconds) {
             return;
         }
 
@@ -63,24 +68,42 @@ class CheckOfflineAgents extends Command
             ? $agent->last_seen_at->diffForHumans()
             : 'nunca';
 
-        $alert = Alert::create([
-            'agent_id'           => $agent->id,
-            'metric_snapshot_id' => null,
-            'rule_name'          => $rule->rule_key,
-            'metric'             => 'agent_offline',
-            'severity'           => $rule->severity,
-            'source'             => 'server',
-            'value'              => 0,
-            'threshold'          => 1,
-            'message'            => "El agente {$agent->name} está offline. Último contacto: {$lastSeen}.",
-            'fired_at'           => now(),
-            'status'             => 'open',
-        ]);
+        $message = "El agente {$agent->name} está offline. Último contacto: {$lastSeen}.";
 
-        Cache::put($cacheKey, true, now()->addSeconds($rule->cooldown_seconds));
+        if ($existing) {
+            $occurrences   = $existing->occurrences ?? [];
+            $occurrences[] = [
+                'value'    => 0,
+                'fired_at' => now()->toISOString(),
+                'message'  => $message,
+            ];
+            $existing->update([
+                'occurrences'       => $occurrences,
+                'occurrences_count' => count($occurrences),
+                'message'           => $message,
+                'status'            => 'open',
+            ]);
+            $alert = $existing;
+        } else {
+            $alert = Alert::create([
+                'agent_id'           => $agent->id,
+                'metric_snapshot_id' => null,
+                'rule_name'          => $rule->rule_key,
+                'metric'             => 'agent_offline',
+                'severity'           => $rule->severity,
+                'source'             => 'server',
+                'value'              => 0,
+                'threshold'          => 1,
+                'message'            => $message,
+                'fired_at'           => now(),
+                'status'             => 'open',
+                'occurrences_count'  => 0,
+                'email_sent_count'   => 0,
+            ]);
+        }
 
         if ($rule->notify_email) {
-            $alertService->notify($agent, $alert);
+            $alertService->notify($agent, $alert, $rule);
         }
     }
 }

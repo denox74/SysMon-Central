@@ -54,7 +54,8 @@ export const panelApi = {
   acknowledgeAlert:  (id)         => api.post(`/panel/alerts/${id}/acknowledge`),
   resolveAlert:      (id, note)   => api.post(`/panel/alerts/${id}/resolve`, { note }),
   archiveAlert:      (id)         => api.post(`/panel/alerts/${id}/archive`),
-  archiveResolved:   (params={})  => api.post('/panel/alerts/archive-resolved', {}, { params }),
+  archiveResolved:      (params={})  => api.post('/panel/alerts/archive-resolved', {}, { params }),
+  deleteArchivedAlerts: (params={})  => api.delete('/panel/alerts/archived', { params }),
 
   // Reglas
   alertRules:        (params={})  => api.get('/panel/alert-rules', { params }),

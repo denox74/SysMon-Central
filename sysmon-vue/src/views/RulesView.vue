@@ -5,7 +5,10 @@
         <h2>Umbrales de alerta</h2>
         <p class="text-muted" style="font-size:11px;margin-top:2px">Las reglas globales aplican a todos los agentes. Puedes añadir reglas específicas por agente.</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate()">+ Nueva regla</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" @click="loadRules()" title="Recargar reglas">↺ Actualizar</button>
+        <button class="btn btn-primary" @click="openCreate()">+ Nueva regla</button>
+      </div>
     </div>
 
     <div class="card">
@@ -121,6 +124,12 @@
               <input type="checkbox" v-model="modal.notify_email" id="notifyEmail" style="width:auto" />
               <label for="notifyEmail" class="form-label" style="margin:0">Notificar por email</label>
             </div>
+            <div v-if="modal.notify_email" class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Máximo de emails por alerta abierta</label>
+              <input class="input" type="number" v-model.number="modal.max_email_count" min="1" placeholder="Dejar vacío para ilimitado" />
+              <p class="field-hint">Número máximo de emails que se envían mientras la alerta permanezca abierta. Al resolverse y volver a dispararse, el contador se reinicia.</p>
+              <p v-if="editing" class="field-hint" style="margin-top:4px">Emails enviados en la alerta actual: <strong>{{ modal.email_sent_count ?? 0 }}</strong></p>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-ghost" @click="modal = null">Cancelar</button>
@@ -189,7 +198,7 @@ watch(() => modal.value?.metric_path, (path) => {
 
 function openCreate() {
   editing.value = null
-  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false }
+  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false, max_email_count: null }
 }
 
 /**
@@ -256,6 +265,15 @@ onMounted(loadRules)
 .rules-view { display: flex; flex-direction: column; gap: 18px; }
 .view-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .view-header h2 { font-size: 18px; }
+
+.btn-secondary {
+  background: transparent; border: 1px solid var(--border); color: var(--text-bright);
+  padding: 7px 14px; border-radius: var(--radius); font-size: 12px; cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+.btn-secondary:hover { border-color: var(--accent); background: rgba(0,212,255,0.06); }
+
+.field-hint { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
 .toggle {
   width: 36px; height: 18px;

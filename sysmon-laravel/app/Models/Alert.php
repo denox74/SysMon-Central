@@ -20,6 +20,7 @@ class Alert extends Model
         'agent_id', 'metric_snapshot_id',
         'rule_name', 'metric', 'severity', 'source',
         'value', 'threshold', 'message',
+        'occurrences', 'occurrences_count', 'email_sent_count',
         'status', 'resolved_at', 'resolution_note',
         'archived_at',
         'notified_email', 'notified_at',
@@ -27,13 +28,14 @@ class Alert extends Model
     ];
 
     protected $casts = [
-        'fired_at'      => 'datetime',
-        'resolved_at'   => 'datetime',
-        'archived_at'   => 'datetime',
-        'notified_at'   => 'datetime',
-        'value'         => 'float',
-        'threshold'     => 'float',
-        'notified_email'=> 'boolean',
+        'fired_at'       => 'datetime',
+        'resolved_at'    => 'datetime',
+        'archived_at'    => 'datetime',
+        'notified_at'    => 'datetime',
+        'value'          => 'float',
+        'threshold'      => 'float',
+        'notified_email' => 'boolean',
+        'occurrences'    => 'array',
     ];
 
     public function agent(): BelongsTo

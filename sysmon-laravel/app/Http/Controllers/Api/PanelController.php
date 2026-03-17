@@ -449,6 +449,9 @@ class PanelController extends Controller
                 'mail.from.name'               => $s->from_name,
             ]);
 
+            // Purgar el mailer para que use la nueva config (no la cacheada al arrancar)
+            Mail::purge('smtp');
+
             Mail::raw('Este es un email de prueba enviado desde SysMon para verificar que la configuración SMTP es correcta.', function ($m) use ($to, $s) {
                 $m->to($to)->subject('[SysMon] Email de prueba');
             });

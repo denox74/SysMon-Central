@@ -138,6 +138,9 @@ class AlertService
                         'mail.from.name'               => $settings->from_name,
                     ]);
 
+                    // Purgar el mailer para que use la config actualizada en BD
+                    Mail::purge('smtp');
+
                     Mail::to($recipients)->queue(new AlertNotificationMail($agent, $alert));
                     $alert->update([
                         'notified_email' => true,

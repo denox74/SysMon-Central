@@ -65,4 +65,8 @@ Route::prefix('panel')
         Route::post('alert-rules',              [PanelController::class, 'createAlertRule']);
         Route::put('alert-rules/{rule}',        [PanelController::class, 'updateAlertRule']);
         Route::delete('alert-rules/{rule}',     [PanelController::class, 'deleteAlertRule']);
+
+        // ── Configuración de email ────────────────────────────────
+        Route::get('settings/email',            [PanelController::class, 'getEmailSettings']);
+        Route::put('settings/email',            [PanelController::class, 'updateEmailSettings']);
     });

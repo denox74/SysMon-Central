@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\Alert;
 use App\Models\AlertRule;
+use App\Models\EmailSetting;
 use App\Models\MetricSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -126,8 +127,10 @@ class PanelController extends Controller
     public function updateAgent(Agent $agent, Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'  => ['required', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:500'],
+            'name'            => ['required', 'string', 'max:100'],
+            'notes'           => ['nullable', 'string', 'max:500'],
+            'notify_email'    => ['sometimes', 'boolean'],
+            'notify_email_to' => ['sometimes', 'nullable', 'email'],
         ]);
         $agent->update($data);
         return response()->json($agent);
@@ -347,6 +350,55 @@ class PanelController extends Controller
     public function deleteAlertRule(AlertRule $rule): JsonResponse
     {
         $rule->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    // ── Configuración de email ─────────────────────────────────────
+
+    /** GET /api/panel/settings/email */
+    public function getEmailSettings(): JsonResponse
+    {
+        $s = EmailSetting::current();
+
+        return response()->json([
+            'smtp_host'         => $s->smtp_host,
+            'smtp_port'         => $s->smtp_port,
+            'smtp_username'     => $s->smtp_username,
+            'smtp_password'     => $s->smtp_password ? '••••••' : '',  // nunca devolver la contraseña real
+            'smtp_encryption'   => $s->smtp_encryption,
+            'from_address'      => $s->from_address,
+            'from_name'         => $s->from_name,
+            'recipients'        => $s->recipients ?? [],
+            'notify_severities' => $s->notify_severities ?? ['warning', 'critical'],
+        ]);
+    }
+
+    /** PUT /api/panel/settings/email */
+    public function updateEmailSettings(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'smtp_host'           => ['required', 'string', 'max:255'],
+            'smtp_port'           => ['required', 'integer', 'min:1', 'max:65535'],
+            'smtp_username'       => ['nullable', 'string', 'max:255'],
+            'smtp_password'       => ['nullable', 'string', 'max:500'],
+            'smtp_encryption'     => ['required', 'in:tls,ssl,none'],
+            'from_address'        => ['required', 'email'],
+            'from_name'           => ['required', 'string', 'max:100'],
+            'recipients'          => ['required', 'array'],
+            'recipients.*'        => ['email'],
+            'notify_severities'   => ['required', 'array'],
+            'notify_severities.*' => ['in:info,warning,critical'],
+        ]);
+
+        $setting = EmailSetting::current();
+
+        // Si el password viene como '••••••' (no editado), conservar el existente
+        if (($data['smtp_password'] ?? '') === '••••••' || ($data['smtp_password'] ?? '') === '') {
+            unset($data['smtp_password']);
+        }
+
+        $setting->update($data);
+
         return response()->json(['ok' => true]);
     }
 }

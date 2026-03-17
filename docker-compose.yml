@@ -50,16 +50,9 @@ services:
       QUEUE_CONNECTION: sync     # sync = emails en el mismo proceso (ideal para dev)
       SESSION_DRIVER:  file
 
-      # Email: usa Mailtrap para ver emails sin enviar nada real
-      MAIL_MAILER:     smtp
-      MAIL_HOST:       ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
-      MAIL_PORT:       ${MAIL_PORT:-2525}
-      MAIL_USERNAME:   ${MAIL_USERNAME:-}
-      MAIL_PASSWORD:   ${MAIL_PASSWORD:-}
-      MAIL_FROM_ADDRESS: sysmon@localhost
-      MAIL_FROM_NAME:  SysMon
-
-      SYSMON_ALERT_EMAIL: ${SYSMON_ALERT_EMAIL:-admin@localhost}
+      # Email: configuración gestionada desde el panel → Configuración → Email
+      # No es necesario tocar estas variables — el panel guarda todo en la BD
+      MAIL_MAILER: smtp
     ports:
       - "8000:8000"
     volumes:

@@ -16,6 +16,7 @@ const routes = [
   { path: '/agents/:id', name: 'agent',   component: () => import('@/views/AgentDetailView.vue') },
   { path: '/alerts',   name: 'alerts',    component: () => import('@/views/AlertsView.vue') },
   { path: '/rules',    name: 'rules',     component: () => import('@/views/RulesView.vue') },
+  { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
 ]
 
 export default createRouter({

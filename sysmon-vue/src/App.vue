@@ -18,7 +18,8 @@
         </RouterLink>
 
         <div class="nav-section">Configuración</div>
-        <RouterLink to="/rules"   class="nav-item" active-class="active"><span class="nav-icon">◧</span> Umbrales</RouterLink>
+        <RouterLink to="/rules"    class="nav-item" active-class="active"><span class="nav-icon">◧</span> Umbrales</RouterLink>
+        <RouterLink to="/settings" class="nav-item" active-class="active"><span class="nav-icon">✉</span> Email</RouterLink>
       </nav>
 
     </aside>
@@ -86,7 +87,7 @@ function updateClock() {
 
 // Mapeo nombre-de-ruta → título que muestra el header
 // Route name → title shown in the header
-const titles = { dashboard: 'Dashboard', agents: 'Agentes', agent: 'Detalle de agente', alerts: 'Alertas', rules: 'Umbrales' }
+const titles = { dashboard: 'Dashboard', agents: 'Agentes', agent: 'Detalle de agente', alerts: 'Alertas', rules: 'Umbrales', settings: 'Configuración Email' }
 const pageTitle = computed(() => titles[route.name] ?? 'SysMon Central')
 
 onMounted(() => {

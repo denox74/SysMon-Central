@@ -6,6 +6,7 @@ use App\Mail\AlertNotificationMail;
 use App\Models\Agent;
 use App\Models\Alert;
 use App\Models\AlertRule;
+use App\Models\EmailSetting;
 use App\Models\MetricSnapshot;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -101,14 +102,38 @@ class AlertService
      */
     public function notify(Agent $agent, Alert $alert): void
     {
+        // Configuración de email almacenada en BD (editable desde el panel)
+        $settings = EmailSetting::current();
+
+        // Filtrar por severidades habilitadas para email
+        $allowedSeverities = $settings->notify_severities ?? ['warning', 'critical'];
+        if (! in_array($alert->severity, $allowedSeverities)) {
+            return;
+        }
+
         // Email
         if ($agent->notify_email) {
-            $to = $agent->notify_email_to
-                ?? config('sysmon.notifications.default_email');
+            // Destinatario: email propio del agente, o los destinatarios globales
+            $recipients = $agent->notify_email_to
+                ? [$agent->notify_email_to]
+                : array_values(array_filter($settings->recipients ?? []));
 
-            if ($to) {
+            if (! empty($recipients) && ! empty($settings->from_address)) {
                 try {
-                    Mail::to($to)->queue(new AlertNotificationMail($agent, $alert));
+                    // Aplicar SMTP y remitente desde BD en tiempo real
+                    config([
+                        'mail.mailers.smtp.host'       => $settings->smtp_host,
+                        'mail.mailers.smtp.port'       => $settings->smtp_port,
+                        'mail.mailers.smtp.username'   => $settings->smtp_username,
+                        'mail.mailers.smtp.password'   => $settings->smtp_password,
+                        'mail.mailers.smtp.encryption' => $settings->smtp_encryption === 'none'
+                                                            ? null
+                                                            : $settings->smtp_encryption,
+                        'mail.from.address'            => $settings->from_address,
+                        'mail.from.name'               => $settings->from_name,
+                    ]);
+
+                    Mail::to($recipients)->queue(new AlertNotificationMail($agent, $alert));
                     $alert->update([
                         'notified_email' => true,
                         'notified_at'    => now(),

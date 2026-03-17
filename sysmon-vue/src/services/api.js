@@ -61,6 +61,10 @@ export const panelApi = {
   createAlertRule:   (data)       => api.post('/panel/alert-rules', data),
   updateAlertRule:   (id, data)   => api.put(`/panel/alert-rules/${id}`, data),
   deleteAlertRule:   (id)         => api.delete(`/panel/alert-rules/${id}`),
+
+  // Configuración de email
+  getEmailSettings:    ()     => api.get('/panel/settings/email'),
+  updateEmailSettings: (data) => api.put('/panel/settings/email', data),
 }
 
 export default api

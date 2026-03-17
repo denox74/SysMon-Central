@@ -16,19 +16,20 @@ class CheckOfflineAgents extends Command
 
     public function handle(AlertService $alertService): int
     {
-        $agents = Agent::where('is_active', true)
-            ->where('status', '!=', 'offline')
-            ->get();
+        $agents = Agent::where('is_active', true)->get();
 
         $markedOffline = 0;
 
         foreach ($agents as $agent) {
             if ($agent->isOffline()) {
-                $agent->update(['status' => 'offline']);
-                $markedOffline++;
-                $this->warn("Agente offline: {$agent->name} (último ping: {$agent->last_seen_at})");
+                // Actualizar estado solo si no estaba ya marcado como offline
+                if ($agent->status !== 'offline') {
+                    $agent->update(['status' => 'offline']);
+                    $markedOffline++;
+                    $this->warn("Agente offline: {$agent->name} (último ping: {$agent->last_seen_at})");
+                }
 
-                // Disparar alerta offline si existe una regla configurada para ello
+                // Disparar alerta para todos los agentes offline (el cooldown controla la frecuencia)
                 $this->fireOfflineAlert($agent, $alertService);
             }
         }

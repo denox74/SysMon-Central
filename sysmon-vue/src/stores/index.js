@@ -15,6 +15,9 @@ import { ref, computed } from 'vue'
 import { panelApi } from '@/services/api'
 
 // ── Dashboard Store ───────────────────────────────────────────────────────────
+const STARTUP_TIMEOUT_MS = 3 * 60 * 1000   // 3 minutos para esperar que arranque la API
+const _startedAt         = Date.now()       // momento en que se cargó el módulo
+
 export const useDashboardStore = defineStore('dashboard', () => {
   // Estado principal devuelto por /api/panel/dashboard
   // Main state returned by /api/panel/dashboard
@@ -22,6 +25,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading    = ref(false)
   const error      = ref(null)
   const lastUpdate = ref(null)
+  const timedOut   = ref(false)    // true cuando se agotó el tiempo de espera de arranque
   let   pollTimer  = null  // ID del intervalo activo / active interval ID
 
   // ── Getters ──────────────────────────────────────────────
@@ -55,9 +59,15 @@ export const useDashboardStore = defineStore('dashboard', () => {
       data.value       = res
       lastUpdate.value = new Date()
     } catch (e) {
+      // Comprobar si se agotó el tiempo de espera de arranque
+      if (!timedOut.value && Date.now() - _startedAt >= STARTUP_TIMEOUT_MS) {
+        timedOut.value = true
+      }
+      // Solo mostrar error si ya hay datos anteriores (polling normal) o si se agotó el tiempo
       // No limpiamos data.value para seguir mostrando datos anteriores
-      // We keep data.value to continue showing previous data while reconnecting
-      error.value = 'No se pudo conectar con la API. ¿Está Laravel corriendo?'
+      if (data.value !== null || timedOut.value) {
+        error.value = 'No se pudo conectar con la API. ¿Está Laravel corriendo?'
+      }
     } finally {
       loading.value = false
     }
@@ -80,7 +90,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     clearInterval(pollTimer)
   }
 
-  return { data, loading, error, lastUpdate, agents, openAlerts, totals, criticalAgents, offlineAgents, fetch, startPolling, stopPolling }
+  return { data, loading, error, lastUpdate, timedOut, startupStartedAt: _startedAt, agents, openAlerts, totals, criticalAgents, offlineAgents, fetch, startPolling, stopPolling }
 })
 
 // ── Alerts Store ─────────────────────────────────────────────────────────────

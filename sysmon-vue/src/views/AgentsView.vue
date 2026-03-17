@@ -151,7 +151,7 @@
       <div v-if="renameModal" class="modal-backdrop" @click.self="renameModal = null">
         <div class="modal">
           <div class="modal-header">
-            <h3>Renombrar agente</h3>
+            <h3>Editar agente</h3>
             <button class="btn btn-ghost btn-sm" @click="renameModal = null">✕</button>
           </div>
           <div class="modal-body">
@@ -162,6 +162,11 @@
             <div class="form-group">
               <label class="form-label">Etiqueta</label>
               <input class="input" v-model="renameForm.notes" placeholder="ej: producción, frontend…" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email de alertas (opcional)</label>
+              <input class="input" type="email" v-model="renameForm.notify_email_to" placeholder="Dejar vacío para usar los destinatarios globales" />
+              <p style="font-size:10px;color:var(--text-muted);margin-top:4px">Si se rellena, las alertas de este agente irán solo a este email.</p>
             </div>
           </div>
           <div class="modal-footer">
@@ -256,7 +261,7 @@ const tokenModal  = ref(null)
 // tokenCache stores the last token per agent to avoid repeat API calls
 const tokenCache  = {}
 const renameModal = ref(null)
-const renameForm  = ref({ name: '', notes: '' })
+const renameForm  = ref({ name: '', notes: '', notify_email_to: '' })
 const form = ref({ name: '', notify_email_to: '', notes: '' })
 
 /**
@@ -335,7 +340,7 @@ function copyToken(token) {
 /** Opens the rename modal pre-filling the agent's current values. */
 function openRename(agent) {
   renameModal.value = agent
-  renameForm.value  = { name: agent.name, notes: agent.notes ?? '' }
+  renameForm.value  = { name: agent.name, notes: agent.notes ?? '', notify_email_to: agent.notify_email_to ?? '' }
 }
 
 /**
@@ -346,7 +351,12 @@ function openRename(agent) {
  */
 async function saveRename() {
   if (!renameForm.value.name) return
-  await panelApi.updateAgent(renameModal.value.id, renameForm.value)
+  const payload = {
+    name:            renameForm.value.name,
+    notes:           renameForm.value.notes,
+    notify_email_to: renameForm.value.notify_email_to || null,  // vacío → null (usar destinatarios globales)
+  }
+  await panelApi.updateAgent(renameModal.value.id, payload)
   renameModal.value = null
   store.fetch()
 }

@@ -1,16 +1,20 @@
 <template>
   <div class="dashboard">
 
-    <!-- Connecting (first load) -->
-    <template v-if="store.loading && !store.data">
+    <!-- Startup phase: waiting for API to boot (up to 3 min) -->
+    <template v-if="!store.data && !store.timedOut">
       <div class="connecting-wrap">
-        <div class="connecting-label">Conectando con la API…</div>
+        <div class="connecting-label">{{ store.loading ? 'Conectando con la API…' : 'Esperando arranque de la API…' }}</div>
         <div class="connecting-bar"><div class="connecting-fill"></div></div>
-        <div class="connecting-hint">Esperando respuesta del servidor</div>
+        <div class="startup-progress-track">
+          <div class="startup-progress-fill" :style="{ width: progressPct + '%' }"></div>
+        </div>
+        <div class="connecting-hint">{{ store.loading ? 'Estableciendo conexión con el servidor' : 'Reintentando conexión automáticamente…' }}</div>
+        <div class="startup-sub">Puede tardar hasta 3 minutos al iniciar por primera vez · {{ elapsedLabel }}</div>
       </div>
     </template>
 
-    <!-- Error on first load (no data at all) -->
+    <!-- Error after timeout -->
     <div v-else-if="store.error && !store.data" class="api-error">
       <span>⚠</span>
       <div>
@@ -119,13 +123,32 @@
   The "Reconnecting" toast appears if polling fails but data already exists.
 -->
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDashboardStore } from '@/stores'
 import { panelApi } from '@/services/api'
 import AgentCard from '@/components/dashboard/AgentCard.vue'
 
 const store  = useDashboardStore()
 const totals = computed(() => store.totals)
+
+// Progreso de arranque (0–180 segundos → 0–100%)
+const STARTUP_MAX_S = 180
+const elapsed       = ref(0)
+let   elapsedTimer  = null
+
+const progressPct  = computed(() => Math.min(100, (elapsed.value / STARTUP_MAX_S) * 100))
+const elapsedLabel = computed(() => {
+  const s = elapsed.value
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`
+})
+
+onMounted(() => {
+  elapsedTimer = setInterval(() => {
+    elapsed.value = Math.floor((Date.now() - store.startupStartedAt) / 1000)
+  }, 1000)
+})
+
+onUnmounted(() => clearInterval(elapsedTimer))
 
 /**
  * Devuelve la clase CSS de badge según la severidad.
@@ -214,6 +237,26 @@ async function resolveAlert(id) {
   font-size: 11px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
+}
+.startup-progress-track {
+  width: 320px;
+  height: 3px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: -6px;
+}
+.startup-progress-fill {
+  height: 100%;
+  background: var(--accent2);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+.startup-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  letter-spacing: 0.3px;
 }
 
 /* Reconnecting toast */

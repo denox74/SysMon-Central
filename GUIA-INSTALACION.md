@@ -34,30 +34,7 @@ docker compose version
 
 ---
 
-## PASO 2 — Configurar email de alertas (opcional)
-
-Crea un archivo `.env` en la carpeta raíz del proyecto (junto a `docker-compose.yml`):
-
-```env
-# .env (en la raíz del proyecto, junto a docker-compose.yml)
-
-# Email para recibir alertas (usa Mailtrap para desarrollo)
-MAIL_HOST=sandbox.smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=TU_USUARIO_MAILTRAP
-MAIL_PASSWORD=TU_PASSWORD_MAILTRAP
-
-SYSMON_ALERT_EMAIL=tu@email.com
-```
-
-> Si omites este paso, el sistema funciona igualmente pero no enviará emails de alerta.
->
-> **Mailtrap** es gratis y te permite ver los emails en el navegador sin que lleguen a ningún buzón real.
-> Regístrate en https://mailtrap.io y usa las credenciales de tu "sandbox".
-
----
-
-## PASO 3 — Arrancar Docker
+## PASO 2 — Arrancar Docker
 
 ```bash
 # Situarse en la carpeta raíz del proyecto
@@ -107,6 +84,19 @@ docker compose down
 # Parar y borrar la base de datos (reset completo)
 docker compose down -v
 ```
+
+---
+
+## PASO 3 — Configurar email de alertas (opcional)
+
+El email se configura directamente desde el panel, sin necesidad de crear ningún archivo `.env`.
+
+Una vez arrancado Docker, ve a **http://localhost:5173** → **Configuración** → **Email** e introduce las credenciales SMTP.
+
+> **Mailtrap** es gratis y permite ver los emails en el navegador sin que lleguen a ningún buzón real.
+> Regístrate en https://mailtrap.io y usa las credenciales de tu "sandbox".
+>
+> En producción introduce los datos de tu SMTP real (Gmail, Sendgrid, Mailgun, etc.) desde el mismo panel.
 
 ---
 
@@ -261,9 +251,10 @@ Cada agente se identifica por su token único. El panel muestra todos con sus m�
 - Espera un poco más, `npm install` puede tardar 1-2 minutos la primera vez
 
 ### No llegan los emails de alerta
-- Verifica las credenciales de Mailtrap en el `.env` (junto a `docker-compose.yml`)
-- Revisa: `docker compose logs api` para ver errores de email
-- En producción cambiarás a un SMTP real (Gmail, Sendgrid, etc.)
+- Verifica que el email está habilitado en el panel: **Configuración** → **Email**
+- Comprueba que las credenciales SMTP son correctas (usuario, contraseña, host, puerto)
+- Revisa: `docker compose logs api` para ver errores de envío
+- Asegúrate de que la regla de alerta correspondiente tiene activada la opción "Notificar por email"
 
  ### Cambiar el Token al agente
  - `sudo nano /etc/sysmon/agent.env` y cambiarlo en el archivo
@@ -285,7 +276,7 @@ docker compose up
 | `APP_DEBUG=true`       | `APP_DEBUG=false`                       |
 | `php artisan serve`    | Nginx + PHP-FPM                         |
 | `QUEUE_CONNECTION=sync`| Redis + Horizon (emails en background)  |
-| Mailtrap               | SMTP real (Gmail, Sendgrid, Mailgun)    |
+| SMTP vía panel (Mailtrap) | SMTP real desde el panel (Gmail, Sendgrid, Mailgun) |
 | Sin auth en el panel   | Laravel Sanctum + login Vue             |
 | Token en texto plano   | Tokens hasheados en BD                  |
 | HTTP                   | HTTPS con certificado                   |

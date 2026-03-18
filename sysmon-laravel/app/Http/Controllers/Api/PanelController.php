@@ -105,12 +105,11 @@ class PanelController extends Controller
     public function createAgent(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'                        => ['required', 'string', 'max:100'],
-            'notify_email'                => ['boolean'],
-            'notify_email_to'             => ['nullable', 'email'],
-            'notes'                       => ['nullable', 'string'],
-            'offline_after_seconds'       => ['integer', 'min:30'],
-            'offline_alert_delay_seconds' => ['integer', 'min:0'],
+            'name'              => ['required', 'string', 'max:100'],
+            'notify_email'      => ['boolean'],
+            'notify_email_to'   => ['nullable', 'email'],
+            'notes'             => ['nullable', 'string'],
+            'offline_after_seconds' => ['integer', 'min:30'],
         ]);
 
         $agent = Agent::create([
@@ -130,11 +129,10 @@ class PanelController extends Controller
     public function updateAgent(Agent $agent, Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'                        => ['required', 'string', 'max:100'],
-            'notes'                       => ['nullable', 'string', 'max:500'],
-            'notify_email'                => ['sometimes', 'boolean'],
-            'notify_email_to'             => ['sometimes', 'nullable', 'email'],
-            'offline_alert_delay_seconds' => ['sometimes', 'integer', 'min:0'],
+            'name'            => ['required', 'string', 'max:100'],
+            'notes'           => ['nullable', 'string', 'max:500'],
+            'notify_email'    => ['sometimes', 'boolean'],
+            'notify_email_to' => ['sometimes', 'nullable', 'email'],
         ]);
         $agent->update($data);
         return response()->json($agent);
@@ -325,10 +323,11 @@ class PanelController extends Controller
             'threshold'        => ['required', 'numeric'],
             'severity'         => ['required', 'in:info,warning,critical'],
             'message_template' => ['required', 'string', 'max:255'],
-            'cooldown_seconds' => ['integer', 'min:60'],
-            'notify_email'           => ['boolean'],
-            'max_email_count'        => ['nullable', 'integer', 'min:1'],
-            'email_cooldown_seconds' => ['nullable', 'integer', 'min:60'],
+            'cooldown_seconds'            => ['integer', 'min:60'],
+            'offline_alert_delay_seconds' => ['nullable', 'integer', 'min:0'],
+            'notify_email'                => ['boolean'],
+            'max_email_count'             => ['nullable', 'integer', 'min:1'],
+            'email_cooldown_seconds'      => ['nullable', 'integer', 'min:60'],
         ]);
 
         $rule = AlertRule::create($data);
@@ -343,11 +342,12 @@ class PanelController extends Controller
             'threshold'        => ['numeric'],
             'severity'         => ['in:info,warning,critical'],
             'message_template' => ['string', 'max:255'],
-            'cooldown_seconds' => ['integer', 'min:60'],
-            'notify_email'           => ['boolean'],
-            'is_active'              => ['boolean'],
-            'max_email_count'        => ['nullable', 'integer', 'min:1'],
-            'email_cooldown_seconds' => ['nullable', 'integer', 'min:60'],
+            'cooldown_seconds'            => ['integer', 'min:60'],
+            'offline_alert_delay_seconds' => ['nullable', 'integer', 'min:0'],
+            'notify_email'                => ['boolean'],
+            'is_active'                   => ['boolean'],
+            'max_email_count'             => ['nullable', 'integer', 'min:1'],
+            'email_cooldown_seconds'      => ['nullable', 'integer', 'min:60'],
         ]);
 
         $rule->update($data);

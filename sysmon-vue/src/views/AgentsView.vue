@@ -168,14 +168,6 @@
               <input class="input" type="email" v-model="renameForm.notify_email_to" placeholder="Dejar vacío para usar los destinatarios globales" />
               <p style="font-size:10px;color:var(--text-muted);margin-top:4px">Si se rellena, las alertas de este agente irán solo a este email.</p>
             </div>
-            <div class="form-group">
-              <label class="form-label">Retraso de alerta offline (segundos)</label>
-              <input class="input" type="number" min="0" step="60" v-model.number="renameForm.offline_alert_delay_seconds" placeholder="0" />
-              <p style="font-size:10px;color:var(--text-muted);margin-top:4px">
-                Tiempo mínimo sin conexión antes de enviar la alerta. 0 = alertar inmediatamente.
-                Ej: 3600 = solo alertar si lleva más de 1 hora offline.
-              </p>
-            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-ghost" @click="renameModal = null">Cancelar</button>
@@ -269,7 +261,7 @@ const tokenModal  = ref(null)
 // tokenCache stores the last token per agent to avoid repeat API calls
 const tokenCache  = {}
 const renameModal = ref(null)
-const renameForm  = ref({ name: '', notes: '', notify_email_to: '', offline_alert_delay_seconds: 0 })
+const renameForm  = ref({ name: '', notes: '', notify_email_to: '' })
 const form = ref({ name: '', notify_email_to: '', notes: '' })
 
 /**
@@ -348,12 +340,7 @@ function copyToken(token) {
 /** Opens the rename modal pre-filling the agent's current values. */
 function openRename(agent) {
   renameModal.value = agent
-  renameForm.value  = {
-    name:                        agent.name,
-    notes:                       agent.notes ?? '',
-    notify_email_to:             agent.notify_email_to ?? '',
-    offline_alert_delay_seconds: agent.offline_alert_delay_seconds ?? 0,
-  }
+  renameForm.value  = { name: agent.name, notes: agent.notes ?? '', notify_email_to: agent.notify_email_to ?? '' }
 }
 
 /**
@@ -365,10 +352,9 @@ function openRename(agent) {
 async function saveRename() {
   if (!renameForm.value.name) return
   const payload = {
-    name:                        renameForm.value.name,
-    notes:                       renameForm.value.notes,
-    notify_email_to:             renameForm.value.notify_email_to || null,
-    offline_alert_delay_seconds: renameForm.value.offline_alert_delay_seconds ?? 0,
+    name:            renameForm.value.name,
+    notes:           renameForm.value.notes,
+    notify_email_to: renameForm.value.notify_email_to || null,  // vacío → null (usar destinatarios globales)
   }
   await panelApi.updateAgent(renameModal.value.id, payload)
   renameModal.value = null

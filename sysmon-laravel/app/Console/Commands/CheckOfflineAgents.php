@@ -28,10 +28,8 @@ class CheckOfflineAgents extends Command
                     $this->warn("Agente offline: {$agent->name} (último ping: {$agent->last_seen_at})");
                 }
 
-                // Disparar alerta solo si el agente lleva offline el tiempo mínimo configurado
-                if ($agent->shouldAlertOffline()) {
-                    $this->fireOfflineAlert($agent, $alertService);
-                }
+                // Disparar alerta (el cooldown y el delay mínimo se comprueban dentro)
+                $this->fireOfflineAlert($agent, $alertService);
             }
         }
 
@@ -52,6 +50,15 @@ class CheckOfflineAgents extends Command
 
         if (! $rule) {
             return;
+        }
+
+        // Comprobar si el agente lleva offline el tiempo mínimo configurado en la regla
+        $delay = (int) ($rule->offline_alert_delay_seconds ?? 0);
+        if ($delay > 0 && $agent->last_seen_at) {
+            $offlineSeconds = $agent->last_seen_at->diffInSeconds(now());
+            if ($offlineSeconds < $delay) {
+                return;
+            }
         }
 
         // Buscar alerta abierta o acknowledged del mismo tipo (agrupación)

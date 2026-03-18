@@ -11,7 +11,7 @@ class Agent extends Model
     protected $fillable = [
         'name', 'hostname', 'ip_address', 'token', 'token_name',
         'os', 'distro', 'arch', 'cpu_cores', 'ram_total_gb',
-        'status', 'last_seen_at', 'offline_after_seconds', 'offline_alert_delay_seconds',
+        'status', 'last_seen_at', 'offline_after_seconds',
         'custom_thresholds', 'notify_email', 'notify_email_to',
         'is_active', 'notes',
     ];
@@ -74,23 +74,7 @@ class Agent extends Model
         return $this->last_seen_at->diffInSeconds(now()) > $this->offline_after_seconds;
     }
 
-    /**
-     * Devuelve si el agente lleva offline el tiempo mínimo configurado para disparar alertas.
-     * Con offline_alert_delay_seconds = 0 (por defecto) se alerta inmediatamente.
-     */
-    public function shouldAlertOffline(): bool
-    {
-        $delay = (int) ($this->offline_alert_delay_seconds ?? 0);
-        if ($delay <= 0) {
-            return true;
-        }
-        if (! $this->last_seen_at) {
-            return true;
-        }
-        return $this->last_seen_at->diffInSeconds(now()) >= $delay;
-    }
-
-    /** Alertas abiertas no resueltas. */
+/** Alertas abiertas no resueltas. */
     public function openAlerts(): HasMany
     {
         return $this->alerts()->where('status', 'open');

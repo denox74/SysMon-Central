@@ -24,7 +24,7 @@ class AlertRule extends Model
     protected $fillable = [
         'agent_id', 'name', 'rule_key', 'metric_path',
         'operator', 'threshold', 'severity', 'message_template',
-        'cooldown_seconds', 'notify_email', 'max_email_count', 'email_cooldown_seconds', 'is_active',
+        'cooldown_seconds', 'offline_alert_delay_seconds', 'notify_email', 'max_email_count', 'email_cooldown_seconds', 'is_active',
     ];
 
     protected $casts = [

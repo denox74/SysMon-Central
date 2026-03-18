@@ -88,6 +88,14 @@
                   ⓘ Esta regla dispara cuando el agente lleva sin enviar datos más tiempo del configurado en su perfil. No necesita umbral numérico.
                 </p>
               </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Tiempo mínimo offline para alertar (segundos)</label>
+                <input class="input" type="number" min="0" step="60" v-model.number="modal.offline_alert_delay_seconds" placeholder="0 = alertar inmediatamente" />
+                <p class="field-hint">
+                  El agente se marca offline según su perfil, pero la alerta solo se dispara si lleva desconectado al menos este tiempo.
+                  Ej: 3600 = solo alertar si lleva más de 1 hora offline. Dejar en 0 para alertar al instante.
+                </p>
+              </div>
             </template>
             <template v-else>
               <div class="form-group">
@@ -203,7 +211,7 @@ watch(() => modal.value?.metric_path, (path) => {
 
 function openCreate() {
   editing.value = null
-  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, notify_email: false, max_email_count: null, email_cooldown_seconds: null }
+  modal.value = { name:'', rule_key:'', metric_path:'cpu.usage_percent', operator:'gte', threshold: 80, severity:'warning', message_template:'Métrica al {value}% (umbral: {threshold}%)', cooldown_seconds: 300, offline_alert_delay_seconds: 0, notify_email: false, max_email_count: null, email_cooldown_seconds: null }
 }
 
 /**

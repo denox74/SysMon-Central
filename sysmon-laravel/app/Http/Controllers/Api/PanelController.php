@@ -105,11 +105,12 @@ class PanelController extends Controller
     public function createAgent(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'              => ['required', 'string', 'max:100'],
-            'notify_email'      => ['boolean'],
-            'notify_email_to'   => ['nullable', 'email'],
-            'notes'             => ['nullable', 'string'],
-            'offline_after_seconds' => ['integer', 'min:30'],
+            'name'                        => ['required', 'string', 'max:100'],
+            'notify_email'                => ['boolean'],
+            'notify_email_to'             => ['nullable', 'email'],
+            'notes'                       => ['nullable', 'string'],
+            'offline_after_seconds'       => ['integer', 'min:30'],
+            'offline_alert_delay_seconds' => ['integer', 'min:0'],
         ]);
 
         $agent = Agent::create([
@@ -129,10 +130,11 @@ class PanelController extends Controller
     public function updateAgent(Agent $agent, Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'            => ['required', 'string', 'max:100'],
-            'notes'           => ['nullable', 'string', 'max:500'],
-            'notify_email'    => ['sometimes', 'boolean'],
-            'notify_email_to' => ['sometimes', 'nullable', 'email'],
+            'name'                        => ['required', 'string', 'max:100'],
+            'notes'                       => ['nullable', 'string', 'max:500'],
+            'notify_email'                => ['sometimes', 'boolean'],
+            'notify_email_to'             => ['sometimes', 'nullable', 'email'],
+            'offline_alert_delay_seconds' => ['sometimes', 'integer', 'min:0'],
         ]);
         $agent->update($data);
         return response()->json($agent);

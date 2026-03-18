@@ -28,8 +28,10 @@ class CheckOfflineAgents extends Command
                     $this->warn("Agente offline: {$agent->name} (último ping: {$agent->last_seen_at})");
                 }
 
-                // Disparar alerta para todos los agentes offline (el cooldown controla la frecuencia)
-                $this->fireOfflineAlert($agent, $alertService);
+                // Disparar alerta solo si el agente lleva offline el tiempo mínimo configurado
+                if ($agent->shouldAlertOffline()) {
+                    $this->fireOfflineAlert($agent, $alertService);
+                }
             }
         }
 

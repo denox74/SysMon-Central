@@ -60,7 +60,7 @@ class CheckOfflineAgents extends Command
 
         // Cooldown basado en BD (updated_at de la alerta existente)
         $lastActivity = $existing?->updated_at ?? now()->subDays(999);
-        if (now()->diffInSeconds($lastActivity) < $rule->cooldown_seconds) {
+        if (abs(now()->diffInSeconds($lastActivity)) < $rule->cooldown_seconds) {
             return;
         }
 

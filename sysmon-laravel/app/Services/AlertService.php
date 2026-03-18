@@ -27,7 +27,7 @@ class AlertService
 
         // Cooldown basado en BD (updated_at de la alerta existente)
         $lastActivity = $existing?->updated_at ?? now()->subDays(999);
-        if (now()->diffInSeconds($lastActivity) < 300) { // 5 min por defecto para alertas de agente
+        if (abs(now()->diffInSeconds($lastActivity)) < 300) { // 5 min por defecto para alertas de agente
             return null;
         }
 
@@ -103,7 +103,7 @@ class AlertService
 
             // Cooldown basado en BD: tiempo desde la última actividad de la alerta
             $lastActivity = $existing?->updated_at ?? now()->subDays(999);
-            $diffSeconds  = now()->diffInSeconds($lastActivity);
+            $diffSeconds  = abs(now()->diffInSeconds($lastActivity));
             if ($diffSeconds < $rule->cooldown_seconds) {
                 Log::info("evaluateServerRules [{$agent->name}]: {$rule->rule_key} — cooldown activo ({$diffSeconds}s < {$rule->cooldown_seconds}s)");
                 continue;

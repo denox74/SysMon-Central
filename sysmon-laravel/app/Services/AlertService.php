@@ -69,6 +69,12 @@ class AlertService
             })
             ->get();
 
+        Log::info("evaluateServerRules [{$agent->name}]: {$rules->count()} reglas activas", [
+            'cpu' => $payload['cpu']['usage_percent'] ?? 'N/A',
+            'temp_max' => $payload['temp_max_celsius'] ?? 'N/A',
+            'disk_max' => $payload['disk_max_usage_percent'] ?? 'N/A',
+        ]);
+
         foreach ($rules as $rule) {
             // Las reglas de tipo agent_offline se evalúan en CheckOfflineAgents, no aquí
             if ($rule->metric_path === 'agent_offline') {
@@ -78,10 +84,14 @@ class AlertService
             $value = $this->extractValue($payload, $rule->metric_path);
 
             if ($value === null) {
+                Log::warning("evaluateServerRules [{$agent->name}]: valor null para '{$rule->metric_path}' (regla: {$rule->rule_key})");
                 continue;
             }
 
-            if (! $this->evaluate($value, $rule->operator, $rule->threshold)) {
+            $conditionMet = $this->evaluate($value, $rule->operator, $rule->threshold);
+            Log::info("evaluateServerRules [{$agent->name}]: {$rule->rule_key} — valor={$value} {$rule->operator} umbral={$rule->threshold} → " . ($conditionMet ? 'DISPARA' : 'no dispara'));
+
+            if (! $conditionMet) {
                 continue;
             }
 
@@ -93,7 +103,9 @@ class AlertService
 
             // Cooldown basado en BD: tiempo desde la última actividad de la alerta
             $lastActivity = $existing?->updated_at ?? now()->subDays(999);
-            if (now()->diffInSeconds($lastActivity) < $rule->cooldown_seconds) {
+            $diffSeconds  = now()->diffInSeconds($lastActivity);
+            if ($diffSeconds < $rule->cooldown_seconds) {
+                Log::info("evaluateServerRules [{$agent->name}]: {$rule->rule_key} — cooldown activo ({$diffSeconds}s < {$rule->cooldown_seconds}s)");
                 continue;
             }
 
@@ -105,6 +117,7 @@ class AlertService
 
             if ($existing) {
                 // Añadir ocurrencia al grupo existente
+                Log::info("evaluateServerRules [{$agent->name}]: {$rule->rule_key} — añadiendo ocurrencia a alerta id:{$existing->id}");
                 $occurrences   = $existing->occurrences ?? [];
                 $occurrences[] = [
                     'value'    => round($value, 2),
@@ -122,6 +135,7 @@ class AlertService
                 $alert = $existing;
             } else {
                 // Crear nueva alerta (sin ocurrencias previas)
+                Log::info("evaluateServerRules [{$agent->name}]: {$rule->rule_key} — CREANDO nueva alerta (severity:{$rule->severity}, value:{$value})");
                 $alert = Alert::create([
                     'agent_id'           => $agent->id,
                     'metric_snapshot_id' => $snapshot->id,

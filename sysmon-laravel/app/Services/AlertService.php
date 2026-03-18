@@ -182,7 +182,7 @@ class AlertService
 
         // Cooldown entre emails: tiempo mínimo desde el último email para esta alerta
         if ($rule && $rule->email_cooldown_seconds !== null && $alert->notified_at !== null) {
-            if (now()->diffInSeconds($alert->notified_at) < $rule->email_cooldown_seconds) {
+            if (abs(now()->diffInSeconds($alert->notified_at)) < $rule->email_cooldown_seconds) {
                 return;
             }
         }

@@ -52,8 +52,8 @@ class Agent extends Model
     }
     /** Devuelve el último snapshot o null. */
     public function latestSnapshot(): ?MetricSnapshot
-    return $this->snapshots()->latest('collected_at')->first();
     {
+        return $this->snapshots()->latest('collected_at')->first();
     }
 
     /** Marca el agente como visto ahora y actualiza su estado. */

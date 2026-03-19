@@ -3,6 +3,18 @@
     <div class="view-header">
       <h2>Alertas</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button
+          v-if="!store.filters.archived && hasOpen"
+          class="btn btn-ghost"
+          style="color:var(--warn);font-size:11px"
+          @click="resolveAllConfirm()"
+        >✓ Resolver todas</button>
+        <button
+          v-if="!store.filters.archived && hasResolved"
+          class="btn btn-ghost"
+          style="color:var(--text-muted);font-size:11px"
+          @click="archiveAll()"
+        >Archivar resueltas</button>
         <!-- Búsqueda por nombre de agente -->
         <input
           class="input"
@@ -29,18 +41,6 @@
           title="Ver alertas archivadas"
         >🗄 Archivo</button>
         <button class="btn btn-ghost" @click="reset()">↻</button>
-        <button
-          v-if="!store.filters.archived && hasOpen"
-          class="btn btn-ghost"
-          style="color:var(--warn);font-size:11px"
-          @click="resolveAllConfirm()"
-        >✓ Resolver todas</button>
-        <button
-          v-if="!store.filters.archived && hasResolved"
-          class="btn btn-ghost"
-          style="color:var(--text-muted);font-size:11px"
-          @click="archiveAll()"
-        >Archivar resueltas</button>
         <!-- Eliminar archivadas permanentemente (solo en vista archivo) -->
         <button
           v-if="store.filters.archived"

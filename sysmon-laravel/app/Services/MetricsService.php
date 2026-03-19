@@ -23,15 +23,15 @@ class MetricsService
      *
      * Todo en una transacción para mantener consistencia.
      */
-    public function process(Agent $agent, array $payload): MetricSnapshot
+    public function process(Agent $agent, array $payload, ?string $connectionIp = null): MetricSnapshot
     {
         // Transacción mínima: solo guardar snapshot y alertas del agente.
         // La evaluación de reglas del servidor va FUERA para que un fallo SMTP
         // no revierta el snapshot ni bloquee la transacción.
-        $snapshot = DB::transaction(function () use ($agent, $payload) {
+        $snapshot = DB::transaction(function () use ($agent, $payload, $connectionIp) {
 
             // 1. Actualizar info del agente con los datos del sistema
-            $this->updateAgentInfo($agent, $payload);
+            $this->updateAgentInfo($agent, $payload, $connectionIp);
 
             // 2. Persistir el snapshot
             $snapshot = MetricSnapshot::create(
@@ -78,15 +78,19 @@ class MetricsService
 
     // ── Privados ────────────────────────────────────────────────────
 
-    private function updateAgentInfo(Agent $agent, array $payload): void
+    private function updateAgentInfo(Agent $agent, array $payload, ?string $connectionIp = null): void
     {
         $system = $payload['system'] ?? [];
         $cpu    = $payload['cpu']    ?? [];
         $ram    = $payload['ram']    ?? [];
 
+        // Preferimos la IP real de conexión (ZeroTier, VPN…) sobre la que reporta
+        // el agente desde su propio sistema, que suele ser la IP local o loopback.
+        $ip = $connectionIp ?? $system['ip'] ?? null;
+
         $agent->update(array_filter([
             'hostname'     => $system['hostname']    ?? null,
-            'ip_address'   => $system['ip']          ?? null,
+            'ip_address'   => $ip,
             'distro'       => $system['distro']      ?? null,
             'arch'         => $system['arch']        ?? null,
             'cpu_cores'    => $cpu['core_count']     ?? null,

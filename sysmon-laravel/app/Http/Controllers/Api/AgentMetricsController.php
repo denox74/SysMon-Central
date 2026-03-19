@@ -28,7 +28,7 @@ class AgentMetricsController extends Controller
         /** @var Agent $agent */
         $agent = $request->get('_agent');
 
-        $snapshot = $this->metricsService->process($agent, $request->validated());
+        $snapshot = $this->metricsService->process($agent, $request->validated(), $request->ip());
 
         return response()->json([
             'ok'          => true,

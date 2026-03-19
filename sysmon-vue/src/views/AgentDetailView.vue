@@ -13,7 +13,7 @@
             <span :class="['badge', statusBadge]">{{ agent.status }}</span>
           </div>
           <div class="text-muted" style="font-size:11px">
-            {{ agent.hostname }} · {{ agent.ip_address }} · {{ agent.distro }}
+            {{ agent.hostname }} · {{ agent.distro }}
           </div>
           <div class="text-muted" style="font-size:11px;margin-top:2px">
             Último ping: {{ timeAgo(agent.last_seen_at) }} · Uptime: {{ uptimeStr }}

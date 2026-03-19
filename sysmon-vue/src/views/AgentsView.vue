@@ -59,7 +59,7 @@
               <span v-if="a.notes" class="tag-label">{{ a.notes }}</span>
               <span v-else class="text-muted">—</span>
             </td>
-            <td class="text-muted" style="font-size:11px">{{ a.hostname || '—' }}<br>{{ a.ip_address || '—' }}</td>
+            <td class="text-muted" style="font-size:11px">{{ a.hostname || '—' }}</td>
             <td>
               <span v-if="a.metrics" :style="{color: cpuColor(a.metrics.cpu_percent)}">
                 {{ a.metrics.cpu_percent?.toFixed(1) }}%

@@ -231,8 +231,8 @@ function fmt(iso) {
   return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const hasOpen     = computed(() => store.items.some(a => a.status === 'open' || a.status === 'acknowledged'))
-const hasResolved = computed(() => store.items.some(a => a.status === 'resolved'))
+const hasOpen     = computed(() => grouped.value.some(g => g.open > 0))
+const hasResolved = computed(() => grouped.value.some(g => g.resolved > 0))
 
 const grouped = computed(() => {
   const map = {}

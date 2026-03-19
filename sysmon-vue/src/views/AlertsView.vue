@@ -3,18 +3,10 @@
     <div class="view-header">
       <div style="display:flex;align-items:center;gap:12px">
         <h2>Alertas</h2>
-        <button
-          v-if="!store.filters.archived && hasOpen"
-          class="btn btn-ghost"
-          style="color:var(--warn);font-size:11px"
-          @click="resolveAllConfirm()"
-        >✓ Resolver todas</button>
-        <button
-          v-if="!store.filters.archived && hasResolved"
-          class="btn btn-ghost"
-          style="color:var(--text-muted);font-size:11px"
-          @click="archiveAll()"
-        >Archivar resueltas</button>
+        <template v-if="!store.filters.archived">
+          <button class="btn btn-ghost" style="color:var(--warn);font-size:11px" @click="resolveAllConfirm()">✓ Resolver todas</button>
+          <button class="btn btn-ghost" style="color:var(--text-muted);font-size:11px" @click="archiveAll()">Archivar resueltas</button>
+        </template>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <!-- Búsqueda por nombre de agente -->
@@ -231,8 +223,6 @@ function fmt(iso) {
   return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const hasOpen     = computed(() => grouped.value.some(g => g.open > 0))
-const hasResolved = computed(() => grouped.value.some(g => g.resolved > 0))
 
 const grouped = computed(() => {
   const map = {}

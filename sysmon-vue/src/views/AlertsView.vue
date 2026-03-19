@@ -30,6 +30,12 @@
         >🗄 Archivo</button>
         <button class="btn btn-ghost" @click="reset()">↻</button>
         <button
+          v-if="!store.filters.archived && hasOpen"
+          class="btn btn-ghost"
+          style="color:var(--warn);font-size:11px"
+          @click="resolveAllConfirm()"
+        >✓ Resolver todas</button>
+        <button
           v-if="!store.filters.archived && hasResolved"
           class="btn btn-ghost"
           style="color:var(--text-muted);font-size:11px"
@@ -223,6 +229,7 @@ function fmt(iso) {
   return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+const hasOpen     = computed(() => store.items.some(a => a.status === 'open' || a.status === 'acknowledged'))
 const hasResolved = computed(() => store.items.some(a => a.status === 'resolved'))
 
 const grouped = computed(() => {
@@ -265,6 +272,12 @@ function toggleArchived() {
   store.filters.archived = store.filters.archived ? '' : '1'
   store.filters.status   = ''
   reset()
+}
+
+async function resolveAllConfirm() {
+  if (!confirm('¿Resolver todas las alertas abiertas?')) return
+  await store.resolveAll()
+  store.fetch(page.value)
 }
 
 async function archiveAll(agentId = null) {

@@ -258,6 +258,20 @@ class PanelController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /** POST /api/panel/alerts/resolve-all — resuelve todas las alertas abiertas o acknowledged */
+    public function resolveAll(Request $request): JsonResponse
+    {
+        $query = Alert::whereIn('status', ['open', 'acknowledged']);
+
+        if ($agentId = $request->get('agent_id')) {
+            $query->where('agent_id', $agentId);
+        }
+
+        $count = $query->update(['status' => 'resolved', 'resolved_at' => now()]);
+
+        return response()->json(['ok' => true, 'resolved' => $count]);
+    }
+
     /** POST /api/panel/alerts/archive-resolved — archiva todas las resueltas */
     public function archiveResolved(Request $request): JsonResponse
     {

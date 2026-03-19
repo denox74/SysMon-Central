@@ -160,6 +160,19 @@ export const useAlertsStore = defineStore('alerts', () => {
    * Si no se está viendo archivadas, las elimina de la lista local.
    * If not viewing archived, removes them from the local list.
    */
+  async function resolveAll(agentId = null) {
+    const params = agentId ? { agent_id: agentId } : {}
+    await panelApi.resolveAll(params)
+    items.value.forEach(a => {
+      if (a.status === 'open' || a.status === 'acknowledged') {
+        if (!agentId || a.agent?.id === agentId) {
+          a.status = 'resolved'
+          a.resolved_at = new Date().toISOString()
+        }
+      }
+    })
+  }
+
   async function archiveAllResolved(agentId = null) {
     const params = agentId ? { agent_id: agentId } : {}
     await panelApi.archiveResolved(params)
@@ -168,5 +181,5 @@ export const useAlertsStore = defineStore('alerts', () => {
     }
   }
 
-  return { items, loading, pagination, filters, fetch, acknowledge, resolve, archive, archiveAllResolved }
+  return { items, loading, pagination, filters, fetch, acknowledge, resolve, archive, resolveAll, archiveAllResolved }
 })

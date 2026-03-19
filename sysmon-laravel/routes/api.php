@@ -56,6 +56,7 @@ Route::prefix('panel')
         Route::get('alerts',                            [PanelController::class, 'alerts']);
         Route::get('agents/{agent}/alerts',             [PanelController::class, 'agentAlerts']);
         Route::delete('alerts/archived',                [PanelController::class, 'deleteArchivedAlerts']);
+        Route::post('alerts/resolve-all',               [PanelController::class, 'resolveAll']);
         Route::post('alerts/archive-resolved',          [PanelController::class, 'archiveResolved']);
         Route::post('alerts/{alert}/acknowledge',       [PanelController::class, 'acknowledgeAlert']);
         Route::post('alerts/{alert}/resolve',           [PanelController::class, 'resolveAlert']);

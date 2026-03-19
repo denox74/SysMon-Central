@@ -1,8 +1,8 @@
 <template>
   <div class="alerts-view">
     <div class="view-header">
-      <h2>Alertas</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;align-items:center;gap:12px">
+        <h2>Alertas</h2>
         <button
           v-if="!store.filters.archived && hasOpen"
           class="btn btn-ghost"
@@ -15,6 +15,8 @@
           style="color:var(--text-muted);font-size:11px"
           @click="archiveAll()"
         >Archivar resueltas</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <!-- Búsqueda por nombre de agente -->
         <input
           class="input"

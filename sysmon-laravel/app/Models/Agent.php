@@ -48,12 +48,12 @@ class Agent extends Model
     public static function generateToken(): string
     {
         return Str::random(60);
-    }
 
+    }
     /** Devuelve el último snapshot o null. */
     public function latestSnapshot(): ?MetricSnapshot
+    return $this->snapshots()->latest('collected_at')->first();
     {
-        return $this->snapshots()->latest('collected_at')->first();
     }
 
     /** Marca el agente como visto ahora y actualiza su estado. */

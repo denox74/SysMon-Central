@@ -7,6 +7,12 @@
     </div>
 
     <div class="filters-bar">
+      <select class="input" v-model="filterStatus" style="width:160px">
+        <option value="">Estado: todos</option>
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+        <option value="alert">Con alerta</option>
+      </select>
       <input class="input" v-model="searchName" placeholder="Filtrar por nombre…"   style="width:200px" />
       <input class="input" v-model="searchTag"  placeholder="Filtrar por etiqueta…" style="width:200px" />
       <input class="input" v-model="searchHost" placeholder="Filtrar por host…"     style="width:200px" />
@@ -195,7 +201,7 @@
     - filterRam:  uso de RAM ≥ X % / RAM usage ≥ X %
 -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { panelApi } from '@/services/api'
 import { useDashboardStore } from '@/stores'
 
@@ -205,29 +211,31 @@ const store   = useDashboardStore()
 const agents  = computed(() => store.agents)
 
 // ── Filtros reactivos / Reactive filters ──────────────────────────────────────
-const searchName = ref('')
-const searchTag  = ref('')
-const searchHost = ref('')
-const filterTemp = ref(null)
-const filterDisk = ref(null)
-const filterRam  = ref(null)
+const filterStatus = ref('')
+const searchName   = ref('')
+const searchTag    = ref('')
+const searchHost   = ref('')
+const filterTemp   = ref(null)
+const filterDisk   = ref(null)
+const filterRam    = ref(null)
 
 // true si hay algún filtro activo → muestra botón "Limpiar"
 // true if any filter is active → shows "Clear" button
 const hasFilters = computed(() =>
-  searchName.value || searchTag.value || searchHost.value ||
+  filterStatus.value || searchName.value || searchTag.value || searchHost.value ||
   filterTemp.value !== null && filterTemp.value !== '' ||
   filterDisk.value !== null && filterDisk.value !== '' ||
   filterRam.value  !== null && filterRam.value  !== ''
 )
 
 function clearFilters() {
-  searchName.value = ''
-  searchTag.value  = ''
-  searchHost.value = ''
-  filterTemp.value = null
-  filterDisk.value = null
-  filterRam.value  = null
+  filterStatus.value = ''
+  searchName.value   = ''
+  searchTag.value    = ''
+  searchHost.value   = ''
+  filterTemp.value   = null
+  filterDisk.value   = null
+  filterRam.value    = null
 }
 
 /**
@@ -238,12 +246,15 @@ function clearFilters() {
  */
 const filteredAgents = computed(() => {
   let list = agents.value
+  if (filterStatus.value === 'alert')
+    list = list.filter(a => a.open_alerts > 0)
+  else if (filterStatus.value)
+    list = list.filter(a => a.status === filterStatus.value)
   const name = searchName.value.trim().toLowerCase()
   const tag  = searchTag.value.trim().toLowerCase()
   const host = searchHost.value.trim().toLowerCase()
   if (tag)  list = list.filter(a => a.notes?.toLowerCase().includes(tag))
   if (name) list = list.filter(a => a.name?.toLowerCase().includes(name))
-  // searchHost busca en hostname Y ip_address / searchHost searches hostname AND ip_address
   if (host) list = list.filter(a => a.hostname?.toLowerCase().includes(host) || a.ip_address?.toLowerCase().includes(host))
   if (filterTemp.value !== null && filterTemp.value !== '')
     list = list.filter(a => (a.metrics?.temp_max ?? 0) >= filterTemp.value)

@@ -39,6 +39,11 @@
       <div class="m-card"><div class="m-label">Disco</div><div class="m-val disk">{{ latest.disk_max_usage_percent?.toFixed(1) ?? '—' }}<span>%</span></div><div class="m-sub">máx partición</div></div>
       <div class="m-card"><div class="m-label">Temp</div><div class="m-val temp">{{ latest.temp_max_celsius?.toFixed(0) ?? '—' }}<span>°C</span></div><div class="m-sub">{{ latest.temp_max_sensor ?? '—' }}</div></div>
       <div class="m-card"><div class="m-label">Red RX</div><div class="m-val net">{{ latest.net_recv_mb?.toFixed(0) ?? '—' }}<span> MB</span></div><div class="m-sub">total acumulado</div></div>
+      <div class="m-card" v-if="downtimeStats">
+        <div class="m-label">Desconexión</div>
+        <div class="m-val down">{{ fmtDuration(downtimeStats.totalSecs) }}</div>
+        <div class="m-sub">{{ downtimeStats.cuts }} corte{{ downtimeStats.cuts !== 1 ? 's' : '' }} · última {{ hours }}h</div>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -148,9 +153,10 @@ const route  = useRoute()
 const id     = route.params.id  // ID del agente desde la URL / Agent ID from URL
 
 // ── Estado / State ────────────────────────────────────────────────────────────
-const agent    = ref(null)  // datos del agente (modelo Agent) / agent data (Agent model)
-const latest   = ref(null)  // MetricSnapshot más reciente / most recent MetricSnapshot
-const loading  = ref(true)
+const agent     = ref(null)  // datos del agente (modelo Agent) / agent data (Agent model)
+const latest    = ref(null)  // MetricSnapshot más reciente / most recent MetricSnapshot
+const snapshots = ref([])    // historial de snapshots del período seleccionado
+const loading   = ref(true)
 const hours    = ref(24)    // rango del historial de gráficas / chart history range
 const chartData = ref(null)
 const alerts   = ref([])
@@ -180,6 +186,32 @@ const uptimeStr = computed(() => {
   const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600)
   return `${d}d ${h}h`
 })
+
+// ── Computed: estadísticas de desconexión ──────────────────────────────────────
+// Recorre los gaps entre snapshots consecutivos. Si el hueco es mayor que
+// offline_after_seconds del agente, ese tiempo cuenta como offline.
+const downtimeStats = computed(() => {
+  if (!snapshots.value.length) return null
+  const threshold = (agent.value?.offline_after_seconds ?? 120)
+  const times = snapshots.value
+    .map(d => new Date(d.collected_at).getTime() / 1000)
+    .sort((a, b) => a - b)
+  let totalSecs = 0, cuts = 0
+  for (let i = 1; i < times.length; i++) {
+    const gap = times[i] - times[i - 1]
+    if (gap > threshold) { totalSecs += gap; cuts++ }
+  }
+  return { totalSecs: Math.round(totalSecs), cuts }
+})
+
+// Formatea segundos como "Xh Ym", "Xm", "Xs" o "0"
+function fmtDuration(secs) {
+  if (!secs) return '0'
+  if (secs < 60)   return `${secs}s`
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60)
+  return m ? `${h}h ${m}m` : `${h}h`
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(iso) {
@@ -250,6 +282,7 @@ async function loadMetrics() {
     panelApi.metrics(id, hours.value),
     panelApi.latestMetrics(id),
   ])
+  snapshots.value = mRes.data.data
   chartData.value = buildCharts(mRes.data.data)
   latest.value    = lRes.data.data
 }
@@ -326,7 +359,7 @@ onUnmounted(stopPolling)
 .detail { display: flex; flex-direction: column; gap: 18px; }
 .loading { color: var(--text-muted); padding: 40px; text-align: center; }
 
-.metric-cards { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; }
+.metric-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 12px; }
 .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
 .m-label { font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; }
 .m-val   { font-family: var(--font-display); font-size: 26px; font-weight: 800; margin: 4px 0 2px; line-height: 1; }
@@ -336,6 +369,7 @@ onUnmounted(stopPolling)
 .m-val.disk { color: var(--disk); }
 .m-val.temp { color: var(--temp); }
 .m-val.net  { color: var(--net); }
+.m-val.down { color: var(--danger); }
 .m-sub { font-size: 10px; color: var(--text-muted); }
 
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
